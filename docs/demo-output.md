@@ -69,7 +69,7 @@ On-chain plan: sweep $100,000.00 idle, buy $60,000.00 of WETH, post $30,000.00 m
 | | |
 |---|---|
 | ETH price | $2,880.00 |
-| vault TVL | $100,049.22 |
+| vault TVL | $100,049.21 |
 | share price | 1.000344 |
 | USDC reserve (lending) | $10,005.28 |
 | long leg (WETH lending) | 18.1821 ETH = $52,364.34 |
@@ -101,11 +101,11 @@ After the urgent rebalance delta is 0 bps; hedge ratio 100.00%.
 | perp PnL (realised + unrealised) | -$3,327.94 |
 | trading fees | -$155.95 |
 | slippage | -$81.32 |
-| strategy net PnL | $590.79 |
+| strategy net PnL | $590.78 |
 | management fee | -$54.90 |
 | performance fee | -$53.59 |
 | net PnL after fees | $482.30 |
-| reconciliation: NAV - capital - PnL | -$0.000005 |
+| reconciliation: NAV - capital - PnL | -$0.000006 |
 
 
 ## Step 15 - risk metrics
