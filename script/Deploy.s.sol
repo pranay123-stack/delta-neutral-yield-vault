@@ -69,7 +69,8 @@ contract Deploy is Script, ProtocolDeployer {
         vm.serializeAddress(k, "riskManager", address(d.riskManager));
         string memory json = vm.serializeAddress(k, "rebalanceManager", address(d.rebalanceManager));
 
-        string memory path = string.concat("deployments/", vm.toString(block.chainid), ".json");
+        string memory path =
+            vm.envOr("DEPLOYMENT_OUT", string.concat("deployments/", vm.toString(block.chainid), ".json"));
         vm.writeJson(json, path);
         console2.log("Vault:", address(d.vault));
         console2.log("Deployment written to", path);

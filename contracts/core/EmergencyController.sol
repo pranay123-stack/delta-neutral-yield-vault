@@ -22,7 +22,7 @@ contract EmergencyController is IEmergencyController, Auth {
     IStrategyManager public strategy;
     address public riskManager;
 
-    event Initialized(address strategy, address riskManager);
+    event Initialized(address indexed strategy, address indexed riskManager);
 
     error AlreadyInitialized();
     error OnlyRiskManager();

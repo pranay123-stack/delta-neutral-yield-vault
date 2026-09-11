@@ -10,7 +10,7 @@ interface IFeeManager {
         uint256 highWaterMark
     );
     event FeeConfigUpdated(uint16 managementFeeBps, uint16 performanceFeeBps, uint16 withdrawalFeeBps);
-    event FeeRecipientUpdated(address recipient);
+    event FeeRecipientUpdated(address indexed recipient);
 
     /// @return mgmtShares shares to mint for the time-based management fee
     /// @return perfShares shares to mint for the performance fee above the high-water mark

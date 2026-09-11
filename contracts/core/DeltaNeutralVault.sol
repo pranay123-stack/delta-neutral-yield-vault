@@ -45,7 +45,7 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
     address public rebalanceManager;
     uint256 public depositCap;
 
-    event Initialized(address strategy, address rebalanceManager);
+    event Initialized(address indexed strategy, address indexed rebalanceManager);
 
     error OnlyRebalancer();
     error NotInitialized();

@@ -26,10 +26,6 @@ abstract contract Auth {
         if (!accessRegistry.hasRole(role, msg.sender)) revert Unauthorized(role, msg.sender);
     }
 
-    function _hasRole(bytes32 role, address account) internal view returns (bool) {
-        return accessRegistry.hasRole(role, account);
-    }
-
     /// @dev Admin is always allowed to act as guardian (it could grant itself the role anyway).
     function _checkGuardian() internal view {
         if (!accessRegistry.hasRole(Roles.GUARDIAN, msg.sender) && !accessRegistry.hasRole(Roles.ADMIN, msg.sender)) {

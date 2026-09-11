@@ -57,7 +57,13 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
 
     Accounting internal _acct;
 
-    event Initialized(address lending, address perp, address swap, address rebalanceManager, address riskManager);
+    event Initialized(
+        address indexed lending,
+        address indexed perp,
+        address indexed swap,
+        address rebalanceManager,
+        address riskManager
+    );
     event EmergencyStepFailed(uint8 step, bytes reason);
     event PnlCrystallized(uint256 qty, uint256 profitRealized);
 

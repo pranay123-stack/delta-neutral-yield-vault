@@ -43,7 +43,7 @@ export async function buildServer(svc: ApiService, opts: { logger?: boolean; cor
 
   app.get("/health", { schema: { ...tag("system"), summary: "Service health", ...ok(schemas.health) } }, async () => {
     const [chainOk, dbOk] = await Promise.all([
-      svc.chain.publicClient.getBlockNumber().then((b) => b, () => null),
+      svc.chain.publicClient.getBlockNumber({ cacheTime: 0 }).then((b) => b, () => null),
       svc.db.query("SELECT 1").then(() => true, () => false),
     ]);
     const lastIndexed = dbOk ? await svc.db.query("SELECT last_block FROM indexer_state WHERE id = 1").then((r) => r.rows[0]?.last_block ?? null) : null;

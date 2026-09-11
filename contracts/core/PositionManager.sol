@@ -30,7 +30,10 @@ contract PositionManager is IPositionManager {
     IERC20 internal immutable _usdc;
     address internal immutable _weth;
 
+    error ZeroAddress();
+
     constructor(IStrategyManager strategy_, address vault_) {
+        if (address(strategy_) == address(0) || vault_ == address(0)) revert ZeroAddress();
         strategy = strategy_;
         vault = vault_;
         _usdc = IERC20(strategy_.asset());

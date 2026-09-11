@@ -24,3 +24,4 @@ coverage/
 .env*.local
 .anvil.pid
 .anvil.log
+deployments/demo-31337.json

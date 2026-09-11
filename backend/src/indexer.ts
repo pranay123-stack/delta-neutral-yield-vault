@@ -49,7 +49,7 @@ export class Indexer {
 
   /** Index up to the current head. Returns the number of logs written. */
   async sync(): Promise<number> {
-    const head = await this.chain.publicClient.getBlockNumber();
+    const head = await this.chain.publicClient.getBlockNumber({ cacheTime: 0 });
     let from = (await this.lastBlock()) + 1n;
     let written = 0;
     while (from <= head) {

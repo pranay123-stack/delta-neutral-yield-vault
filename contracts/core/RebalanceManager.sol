@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -34,7 +35,7 @@ import {Types} from "../libraries/Types.sol";
 ///      HIGH levels) bypass the filters - the point of them is to not get liquidated.
 ///      When a trigger fires the plan moves all the way to target (not just to the band edge): fewer
 ///      follow-up rebalances at the cost of slightly larger trades. See docs/rebalancing.md.
-contract RebalanceManager is IRebalanceManager, Auth {
+contract RebalanceManager is IRebalanceManager, Auth, ReentrancyGuardTransient {
     using SafeCast for uint256;
     using SafeCast for int256;
 
@@ -135,7 +136,7 @@ contract RebalanceManager is IRebalanceManager, Auth {
 
     /// @dev Recomputes the plan from state instead of trusting `performData`, so a keeper can't
     ///      inject a plan; the keeper only chooses *when* to call.
-    function performUpkeep(bytes calldata) external override onlyRole(Roles.KEEPER) {
+    function performUpkeep(bytes calldata) external override onlyRole(Roles.KEEPER) nonReentrant {
         if (emergency.strategyPaused()) revert StrategyPaused();
         _observe();
         Types.PositionSnapshot memory pre = positionManager.snapshot();

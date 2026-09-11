@@ -1,0 +1,87 @@
+# Full local stack: `docker compose up --build`  ->  dashboard http://localhost:3010, API http://localhost:4010/docs
+# Everything runs on a throwaway Anvil chain with mock markets. No real funds, no real keys.
+#
+# Startup order: postgres + anvil -> deployer (forge script) -> history (replays 90 days of synthetic
+# market through the real contracts) -> backend (API + indexer + keeper) -> frontend.
+name: delta-neutral-vault
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dnv
+      POSTGRES_PASSWORD: dnv
+      POSTGRES_DB: dnv
+    ports: ["${POSTGRES_PORT:-5476}:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dnv -d dnv"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:stable
+    entrypoint: ["anvil", "--host", "0.0.0.0", "--port", "8545", "--chain-id", "31337", "--silent"]
+    ports: ["${ANVIL_PORT:-8555}:8545"]
+    healthcheck:
+      test: ["CMD", "cast", "block-number", "--rpc-url", "http://127.0.0.1:8545"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  deployer:
+    image: ghcr.io/foundry-rs/foundry:stable
+    depends_on:
+      anvil: { condition: service_healthy }
+    working_dir: /repo
+    volumes:
+      - ./:/repo
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      HOME: /tmp
+    entrypoint: ["sh", "-c", "forge script script/Deploy.s.sol --rpc-url http://anvil:8545 --broadcast --quiet && echo deployed"]
+
+  history:
+    build: { context: ., dockerfile: docker/node.Dockerfile, target: backend }
+    depends_on:
+      deployer: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+    environment: &backend-env
+      RPC_URL: http://anvil:8545
+      DATABASE_URL: postgres://dnv:dnv@postgres:5432/dnv
+      DEPLOYMENT_FILE: /repo/deployments/31337.json
+      HISTORY_SEED: ${HISTORY_SEED:-20260911}
+    volumes: ["./deployments:/repo/deployments:ro"]
+    command: ["pnpm", "exec", "tsx", "src/index.ts", "history", "${HISTORY_DAYS:-90}", "6"]
+
+  backend:
+    build: { context: ., dockerfile: docker/node.Dockerfile, target: backend }
+    depends_on:
+      history: { condition: service_completed_successfully }
+    environment:
+      <<: *backend-env
+      KEEPER_ENABLED: "true"
+      CORS_ORIGIN: "*"
+    volumes: ["./deployments:/repo/deployments:ro"]
+    ports: ["${API_PORT:-4010}:4010"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4010/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/node.Dockerfile
+      target: frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-4010}
+        NEXT_PUBLIC_RPC_URL: http://localhost:${ANVIL_PORT:-8555}
+    depends_on:
+      backend: { condition: service_healthy }
+    ports: ["${FRONTEND_PORT:-3010}:3010"]
+
+volumes:
+  pgdata:

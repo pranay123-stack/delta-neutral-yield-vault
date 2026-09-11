@@ -8,7 +8,9 @@ import type { Chain_ } from "./clients";
 export async function readRawState(chain: Chain_, blockNumber?: bigint) {
   const c = chain.contracts;
   const d = chain.deployment;
-  const bn = blockNumber ?? (await chain.publicClient.getBlockNumber());
+  // cacheTime 0: viem otherwise serves a cached head for up to `cacheTime`, so a read right after a
+  // transaction would silently describe the *previous* block (stale snapshots, stale API/demo output)
+  const bn = blockNumber ?? (await chain.publicClient.getBlockNumber({ cacheTime: 0 }));
   const at = { blockNumber: bn } as const;
 
   const [

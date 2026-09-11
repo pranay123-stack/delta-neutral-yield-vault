@@ -1,0 +1,10 @@
+**/node_modules
+**/.next
+out
+cache
+broadcast
+lib
+.git
+.anvil.*
+**/*.log
+coverage
