@@ -201,10 +201,18 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
         // 2. sell the same fraction of the long
         uint256 sellQty = f == WAD ? wethQty : Math.mulDiv(wethQty, f, WAD);
         if (sellQty > 0) _sellWeth(sellQty, price, slip);
-        // 3. release the same fraction of perp equity
-        uint256 margin = perpAdapter.position().margin;
-        uint256 release = Math.min(Math.mulDiv(perpEq, f, WAD), margin);
-        if (perpAdapter.position().size == 0) release = margin;
+        // 3. release perp equity so that exactly (1 - f) of the *pre-exit* equity stays behind: the
+        //    hedge-close fee and slippage were taken out of equity, so they come out of this release
+        //    (paid by the exiting user) rather than out of the remaining holders' share.
+        IPerpMarket.Position memory p = perpAdapter.position();
+        uint256 release;
+        if (p.size == 0) {
+            release = p.margin;
+        } else {
+            uint256 keep = Math.mulDiv(perpEq, WAD - f, WAD, Math.Rounding.Ceil);
+            int256 eqNow = perpAdapter.equity();
+            release = eqNow > keep.toInt256() ? Math.min((eqNow - keep.toInt256()).toUint256(), p.margin) : 0;
+        }
         if (release > 0) perpAdapter.withdrawMargin(release);
 
         uint256 float_ = _usdc.balanceOf(address(this));

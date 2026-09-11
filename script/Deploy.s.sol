@@ -24,7 +24,7 @@ contract Deploy is Script, ProtocolDeployer {
     function run() external returns (Deployment memory d) {
         uint256 pk = vm.envOr("DEPLOYER_PRIVATE_KEY", ANVIL_PK_0);
         _broadcaster = vm.addr(pk);
-        Roles_ memory r = Roles_({
+        RoleSet memory r = RoleSet({
             admin: vm.envOr("ADMIN_ADDRESS", _broadcaster),
             guardian: vm.envOr("GUARDIAN_ADDRESS", ANVIL_2),
             keeper: vm.envOr("KEEPER_ADDRESS", ANVIL_1),
@@ -40,7 +40,7 @@ contract Deploy is Script, ProtocolDeployer {
         _write(d, r, startBlock);
     }
 
-    function _write(Deployment memory d, Roles_ memory r, uint256 startBlock) internal {
+    function _write(Deployment memory d, RoleSet memory r, uint256 startBlock) internal {
         string memory k = "deployment";
         vm.serializeUint(k, "chainId", block.chainid);
         vm.serializeUint(k, "startBlock", startBlock);

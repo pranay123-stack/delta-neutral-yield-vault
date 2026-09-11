@@ -32,7 +32,7 @@ import {MockSpotDEX} from "../contracts/mocks/MockSpotDEX.sol";
 ///         against exactly the configuration the demo ships with.
 /// @dev Every default below is documented in docs/economics.md and docs/risk-management.md.
 abstract contract ProtocolDeployer {
-    struct Roles_ {
+    struct RoleSet {
         address admin;
         address guardian;
         address keeper;
@@ -86,7 +86,7 @@ abstract contract ProtocolDeployer {
     ///      EOA in scripts (inside a broadcast, `address(this)` is the script, not the sender).
     function _self() internal view virtual returns (address);
 
-    function _deployProtocol(Roles_ memory r) internal returns (Deployment memory d) {
+    function _deployProtocol(RoleSet memory r) internal returns (Deployment memory d) {
         _deployMocks(d);
         _deployCore(d, r);
         _wire(d, r);
@@ -109,7 +109,7 @@ abstract contract ProtocolDeployer {
         d.dex = new MockSpotDEX(IERC20(address(d.usdc)), IERC20(address(d.weth)), d.ethUsdFeed, 5, 2, 500_000_000e6);
     }
 
-    function _deployCore(Deployment memory d, Roles_ memory r) internal {
+    function _deployCore(Deployment memory d, RoleSet memory r) internal {
         d.registry = new AccessRegistry(_self());
         d.oracle = new OracleManager(d.registry);
         d.feeManager = new FeeManager(
@@ -143,7 +143,7 @@ abstract contract ProtocolDeployer {
         );
     }
 
-    function _wire(Deployment memory d, Roles_ memory r) internal {
+    function _wire(Deployment memory d, RoleSet memory r) internal {
         d.oracle
             .setFeed(
                 address(d.weth),

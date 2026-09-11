@@ -66,7 +66,7 @@ abstract contract BaseTest is Test, ProtocolDeployer {
 
     function setUp() public virtual {
         vm.warp(START_TIME);
-        d = _deployProtocol(Roles_(address(this), guardian, keeper, strategist, feeRecipient));
+        d = _deployProtocol(RoleSet(address(this), guardian, keeper, strategist, feeRecipient));
         registry = d.registry;
         usdc = d.usdc;
         weth = d.weth;

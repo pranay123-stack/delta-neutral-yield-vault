@@ -56,7 +56,7 @@ contract RebalanceManager is IRebalanceManager, Auth {
     /// @dev RiskMetrics-style EWMA decay per observation.
     uint256 public constant EWMA_LAMBDA_WAD = 0.94e18;
     /// @dev Observations closer together than this are ignored (a spammed feed can't distort vol).
-    uint256 public constant MIN_OBSERVATION_INTERVAL = 10 minutes;
+    uint256 public constant MIN_OBSERVATION_INTERVAL = 1 hours;
 
     IStrategyManager public immutable strategy;
     IPositionManager public immutable positionManager;
@@ -201,8 +201,9 @@ contract RebalanceManager is IRebalanceManager, Auth {
         return _params;
     }
 
+    /// @notice Annualised EWMA volatility in bps, including any observation that is due now.
     function annualizedVolBps() public view override returns (uint256) {
-        return Math.sqrt(ewmaVarianceWad * WAD) / 1e14;
+        return Math.sqrt(_projectedVariance(_currentPriceOrZero()) * WAD) / 1e14;
     }
 
     /// @notice Target leverage scaled down when realised vol exceeds the reference:
@@ -443,22 +444,30 @@ contract RebalanceManager is IRebalanceManager, Auth {
 
     function _observe() internal {
         uint256 price = strategy.oracle().getPrice(strategy.weth());
-        uint256 last = lastObservedPrice;
-        uint256 dt = block.timestamp - lastObservedAt;
-        if (last == 0) {
-            lastObservedPrice = price;
-            lastObservedAt = uint64(block.timestamp);
-            return;
-        }
-        if (dt < MIN_OBSERVATION_INTERVAL) return;
-        uint256 move = price > last ? price - last : last - price;
-        uint256 r = Math.mulDiv(move, WAD, last); // simple return, WAD
-        uint256 sampleVar = Math.mulDiv(Math.mulDiv(r, r, WAD), YEAR, dt); // annualised r^2
-        ewmaVarianceWad =
-            Math.mulDiv(ewmaVarianceWad, EWMA_LAMBDA_WAD, WAD) + Math.mulDiv(sampleVar, WAD - EWMA_LAMBDA_WAD, WAD);
+        if (lastObservedPrice != 0 && block.timestamp - lastObservedAt < MIN_OBSERVATION_INTERVAL) return;
+        ewmaVarianceWad = _projectedVariance(price);
         lastObservedPrice = price;
         lastObservedAt = uint64(block.timestamp);
         emit VolatilityObserved(price, annualizedVolBps());
+    }
+
+    /// @dev EWMA variance *including* the observation that `_observe` would record right now.
+    ///      Views use this so `checkUpkeep` sees exactly what `performUpkeep` will act on (otherwise
+    ///      the in-perform observation could change the plan and waste a keeper transaction).
+    function _projectedVariance(uint256 price) internal view returns (uint256) {
+        uint256 last = lastObservedPrice;
+        uint256 dt = block.timestamp - lastObservedAt;
+        if (last == 0 || price == 0 || dt < MIN_OBSERVATION_INTERVAL) return ewmaVarianceWad;
+        uint256 move = price > last ? price - last : last - price;
+        uint256 r = Math.mulDiv(move, WAD, last); // simple return, WAD
+        uint256 sampleVar = Math.mulDiv(Math.mulDiv(r, r, WAD), YEAR, dt); // annualised r^2
+        return Math.mulDiv(ewmaVarianceWad, EWMA_LAMBDA_WAD, WAD) + Math.mulDiv(sampleVar, WAD - EWMA_LAMBDA_WAD, WAD);
+    }
+
+    function _currentPriceOrZero() internal view returns (uint256 price) {
+        Types.OracleStatus st;
+        (price, st) = strategy.oracle().tryGetPrice(strategy.weth());
+        if (st != Types.OracleStatus.OK && st != Types.OracleStatus.FALLBACK) price = 0;
     }
 
     function _setTargets(Targets memory t) internal {
