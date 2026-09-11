@@ -58,6 +58,7 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
 
     event Initialized(address lending, address perp, address swap, address rebalanceManager, address riskManager);
     event EmergencyStepFailed(uint8 step, bytes reason);
+    event PnlCrystallized(uint256 qty, uint256 profitRealized);
 
     error OnlyVault();
     error OnlyRebalancer();
@@ -148,7 +149,7 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
         (price, priceHealthy) = oracle.getPriceOrLastGood(weth);
         uint256 wethQty = _wethHeld();
         uint256 perpEq = _perpEquity(price);
-        priceDependent = wethQty > 0 || perpEq > 0 || perpAdapter.position().size != 0;
+        priceDependent = wethQty > 0 || perpAdapter.position().size != 0; // cash margin alone needs no price
         nav = _usdc.balanceOf(address(this)) + lendingAdapter.balanceOf(address(_usdc)) + Math.mulDiv(wethQty, price, Q)
             + perpEq;
     }
@@ -264,7 +265,7 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
             _pullFromReserve(m);
             perpAdapter.depositMargin(m);
         } else if (marginOut > 0) {
-            marginOut -= _withdrawFreeMargin(marginOut);
+            marginOut -= _withdrawFreeMargin(marginOut, price, plan.maxSlippageBps, res);
         }
 
         // 3. grow the long leg
@@ -287,7 +288,7 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
         }
 
         // 5. any margin that only became free after the hedge reduction
-        if (marginOut > 0) _withdrawFreeMargin(marginOut);
+        if (marginOut > 0) _withdrawFreeMargin(marginOut, price, plan.maxSlippageBps, res);
 
         // 6. everything left over earns in the reserve
         _parkFloat();
@@ -376,22 +377,50 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
 
     /// @dev Withdraws up to `wanted` margin without breaching the venue's initial-margin requirement
     ///      (a 1% haircut on the free amount absorbs mark/funding drift within the block).
-    function _withdrawFreeMargin(uint256 wanted) internal returns (uint256 withdrawn) {
-        IPerpMarket.Position memory p = perpAdapter.position();
-        uint256 free = p.margin;
-        if (p.size != 0) {
-            int256 eq = perpAdapter.equity();
-            uint256 imr = Math.mulDiv(
-                PerpMath.notional(p.size, perpAdapter.markPrice()),
-                perpAdapter.initialMarginBps(),
-                BPS,
-                Math.Rounding.Ceil
-            );
-            uint256 excess = eq > imr.toInt256() ? (eq - imr.toInt256()).toUint256() : 0;
-            free = Math.min(free, Math.mulDiv(excess, 99, 100));
-        }
+    function _withdrawFreeMargin(uint256 wanted, uint256 price, uint256 slip, Types.ExecutionResult memory res)
+        internal
+        returns (uint256 withdrawn)
+    {
+        (uint256 free, uint256 excess) = _freeMargin();
+        // Excess equity that is not cash is unrealised profit on the short: realise just enough of it.
+        if (free < wanted && excess > free) _crystallizePnl(Math.min(wanted, excess) - free, price, slip, res);
+        (free,) = _freeMargin();
         withdrawn = Math.min(wanted, free);
         if (withdrawn > 0) perpAdapter.withdrawMargin(withdrawn);
+    }
+
+    /// @return free cash margin withdrawable without breaching IMR (1% haircut for in-block drift)
+    /// @return excess equity above IMR, whether it is cash or unrealised PnL
+    function _freeMargin() internal view returns (uint256 free, uint256 excess) {
+        IPerpMarket.Position memory p = perpAdapter.position();
+        if (p.size == 0) return (p.margin, p.margin);
+        int256 eq = perpAdapter.equity();
+        uint256 imr = Math.mulDiv(
+            PerpMath.notional(p.size, perpAdapter.markPrice()), perpAdapter.initialMarginBps(), BPS, Math.Rounding.Ceil
+        );
+        excess = eq > imr.toInt256() ? Math.mulDiv((eq - imr.toInt256()).toUint256(), 99, 100) : 0;
+        free = Math.min(p.margin, excess);
+    }
+
+    /// @dev Venues pay out *cash* margin only; profit on an open short stays unrealised until part of it
+    ///      is closed. After a large ETH decline nearly all perp equity can be unrealised profit, and a
+    ///      margin withdrawal would silently do nothing - the rebalancer would then re-fire every
+    ///      interval without effect. Closing and immediately reopening the slice q = size * needed/uPnL
+    ///      moves exactly that profit into cash margin, at the cost of two taker fees on the slice.
+    function _crystallizePnl(uint256 needed, uint256 price, uint256 slip, Types.ExecutionResult memory res) internal {
+        int256 size = perpAdapter.position().size;
+        int256 upnl = perpAdapter.unrealizedPnl();
+        if (size == 0 || upnl <= 0) return;
+        uint256 u = upnl.toUint256();
+        uint256 target = Math.min(Math.mulDiv(needed, 102, 100), u); // 2% over to cover the two fees
+        uint256 q = Math.mulDiv(PerpMath.abs(size), target, u, Math.Rounding.Ceil);
+        if (q < MIN_HEDGE_TRADE_QTY) return;
+        int256 close = size < 0 ? q.toInt256() : -q.toInt256();
+        IPerpAdapter.TradeResult memory a = _perpTrade(close, price, slip);
+        IPerpAdapter.TradeResult memory b = _perpTrade(-close, price, slip);
+        res.tradingFees += a.fee + b.fee;
+        res.slippage += _pos(a.slippage) + _pos(b.slippage);
+        emit PnlCrystallized(q, target);
     }
 
     function _pullFromReserve(uint256 amount) internal {

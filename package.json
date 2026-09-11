@@ -1,0 +1,16 @@
+{
+  "name": "delta-neutral-vault",
+  "private": true,
+  "description": "Delta-neutral DeFi yield vault: Foundry contracts, TS simulator, keeper/indexer/API backend, Next.js dashboard. Local mock markets only - no real funds.",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "abis": "node scripts/export-abis.mjs",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:contracts": "forge test",
+    "lint:contracts": "forge lint"
+  }
+}
