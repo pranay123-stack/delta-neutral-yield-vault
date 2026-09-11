@@ -192,7 +192,12 @@ docker compose up --build
 
 Compose starts Postgres and Anvil, deploys with Forge, **replays 90 days of synthetic market through the
 real contracts** (~3 min) so the charts have history, then starts the API + indexer + keeper and the
-dashboard.
+dashboard. Every port is overridable, and `HISTORY_DAYS` shortens the replay - useful when the default
+ports are taken or you just want the stack up quickly:
+
+```bash
+POSTGRES_PORT=5487 ANVIL_PORT=8576 API_PORT=4011 FRONTEND_PORT=3011 HISTORY_DAYS=7 docker compose up --build
+```
 
 ### Option B: local processes
 
