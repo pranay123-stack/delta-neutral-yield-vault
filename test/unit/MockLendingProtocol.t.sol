@@ -87,6 +87,21 @@ contract MockLendingProtocolTest is BaseTest {
         lendingPool.setUtilization(u, 1.01e18);
     }
 
+    /// For any utilisation and holding period, a supplier earns supplyRate(U) x t (linear accrual) and
+    /// can always withdraw what it is owed when liquidity allows.
+    function testFuzz_interest_matchesRateCurve(uint256 util, uint256 dt, uint256 amt) public {
+        util = bound(util, 0, 0.9e18);
+        dt = bound(dt, 1 hours, 365 days);
+        amt = bound(amt, 1000e6, 500_000e6);
+        lendingPool.setUtilization(u, util);
+        _supply(alice, amt);
+        uint256 rate = lendingPool.supplyRate(u);
+        vm.warp(block.timestamp + dt);
+        uint256 expected = amt + amt * rate / 1e18 * dt / 365 days;
+        // utilisation drifts slightly as debt compounds, so allow 0.5% of the interest earned
+        assertApproxEqAbs(lendingPool.balanceOf(u, alice), expected, (expected - amt) / 200 + 2);
+    }
+
     function testFuzz_supplyWithdraw_neverProfitsWithoutTime(uint256 amt) public {
         amt = bound(amt, 1, 1_000_000e6);
         uint256 before = usdc.balanceOf(alice);

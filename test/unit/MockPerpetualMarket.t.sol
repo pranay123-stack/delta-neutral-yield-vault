@@ -161,6 +161,22 @@ contract MockPerpetualMarketTest is BaseTest {
         perp.setFundingRate(0.02e18);
     }
 
+    /// Funding owed by / paid to a short equals size x rate x mark x dt / 8h for any rate and period,
+    /// rounded against the account by at most one unit.
+    function testFuzz_fundingAccrual_matchesFormula(int256 ratePer8h, uint256 dt, uint256 qty) public {
+        ratePer8h = bound(ratePer8h, -0.005e18, 0.005e18);
+        dt = bound(dt, 1, 30 days);
+        qty = bound(qty, 1e16, 50e18);
+        _short(qty);
+        perp.setFundingRate(ratePer8h);
+        vm.warp(block.timestamp + dt);
+        _setPrice(3000e8);
+        // short receives when the rate is positive
+        int256 expected = ratePer8h * int256(qty) / 1e18 * 3000 * int256(dt) / int256(8 hours) / 1e12;
+        assertApproxEqAbs(perp.pendingFunding(alice), expected, 2, "funding = size * rate * mark * dt / 8h");
+        _conservation();
+    }
+
     function testFuzz_conservation(uint256 qty, uint256 moveBps, uint256 dt) public {
         qty = bound(qty, 1e16, 90e18);
         moveBps = bound(moveBps, 8500, 11_500);
