@@ -17,20 +17,23 @@ forge snapshot --match-contract GasBenchmarksTest --isolate              # .gas-
 
 | Operation | Before | After | Δ |
 |---|---:|---:|---:|
-| `deposit` | 360,809 | **247,961** | −31.3% |
-| `mint` | 404,115 | **245,703** | −39.2% |
-| `withdraw` | 368,162 | **265,678** | −27.8% |
-| `redeem` | 374,909 | **255,009** | −32.0% |
-| `redeemWithUnwind` (trades on 3 venues) | 893,426 | **815,272** | −8.7% |
-| `accrueFees` (fee collection) | 226,485 | **208,773** | −7.8% |
-| `performUpkeep` (rebalance) | 1,355,046 | **1,219,080** | −10.0% |
-| `riskManager.checkpoint` | 365,088 | **320,069** | −12.3% |
+| `deposit` | 360,809 | **247,827** | −31.3% |
+| `mint` | 404,115 | **246,229** | −39.1% |
+| `withdraw` | 368,162 | **265,942** | −27.8% |
+| `redeem` | 374,909 | **255,826** | −31.8% |
+| `redeemWithUnwind` (trades on 3 venues) | 893,426 | **816,912** | −8.6% |
+| `accrueFees` (fee collection) | 226,485 | **209,299** | −7.6% |
+| `performUpkeep` (rebalance) | 1,355,046 | **1,217,950** | −10.1% |
+| `riskManager.checkpoint` | 365,088 | **321,791** | −11.9% |
 | `rebalancer.setTargets` (strategy update) | 38,111 | 38,111 | 0 |
-| `checkUpkeep` (view, off-chain) | 341,590 | 344,011 | +0.7% (reads `gasCostUsd`) |
-| `vault.totalAssets` (view, cold) | 143,536 | 143,883 | - |
+| `checkUpkeep` (view, off-chain) | 341,590 | 345,463 | +1.1% (reads `gasCostUsd`) |
+| `vault.totalAssets` (view, cold) | 143,536 | 144,281 | - |
 
-`performUpkeep` ranges from 989,878 (deploy idle capital) to 1,219,080 (sell + margin + re-hedge after
+`performUpkeep` ranges from 992,262 (deploy idle capital) to 1,217,950 (sell + margin + re-hedge after
 a price move).
+
+The "After" column includes the venue-failure fallbacks added later (try/catch around every lending
+read, mirroring the perp leg): those cost **+439 gas on `totalAssets`** and +567 on a deposit, ~0.2%.
 
 ## Where the gas goes
 

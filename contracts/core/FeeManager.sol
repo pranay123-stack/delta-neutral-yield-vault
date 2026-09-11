@@ -110,7 +110,8 @@ contract FeeManager is IFeeManager, Auth {
         newHwm = highWaterMark;
         if (s == 0 || a == 0 || lastAccrual == 0) return (0, 0, newHwm, 0, 0);
 
-        uint256 dt = block.timestamp - lastAccrual;
+        // saturating: a view must never revert because a call is served before the last accrual
+        uint256 dt = block.timestamp > lastAccrual ? block.timestamp - lastAccrual : 0;
         if (dt > 0 && managementFeeBps > 0) {
             uint256 f = Math.mulDiv(uint256(managementFeeBps) * dt, WAD, BPS * YEAR);
             if (f < WAD) mgmtShares = Math.mulDiv(s, f, WAD - f);

@@ -46,8 +46,21 @@ useful part of this review.
 | 6 | carry-blocked allocation drift still executed a margin-only move | keeper gas for nothing (6 of 10 rebalances in a replay) | 90-day on-chain replay + indexed data | margin resized only when leverage is out of band |
 | 7 | keeper sent with the raw gas estimate | on-chain reverts: accrual paths short-circuit when `dt == 0` inside an estimate | keeper run log from the replay | 30% gas buffer; simulate first |
 | 8 | backend read the cached head block | state read right after a tx described the *previous* block | the demo printing delta 0 after an ADL | `getBlockNumber({ cacheTime: 0 })` |
+| 9 | `totalAssets` reverted when a lending read did | ERC-4626 requires it never to revert: `maxWithdraw` panicked (0x11) mid-replay and killed a 90-day run. The perp leg had a fallback, the lending leg did not | a 90-day replay dying on `panic: arithmetic underflow or overflow`; reproduced in Foundry by serving a call 2 s before the venue's last checkpoint | try/catch + `GasGuard` around every lending read (valuation, liquidity, snapshot, PnL), falling back to the adapter's own checkpoint; `block.timestamp - lastUpdate` made saturating in `FeeManager` and both venue mocks |
 
-Bugs 5-8 only showed up by *running* the system end to end.
+Bugs 5-9 only showed up by *running* the system end to end.
+
+Bug 9 is worth expanding, because the trigger is subtle. The local chain warps time
+(`evm_increaseTime`) and mints blocks faster than the wall clock, so a call could be served at a
+timestamp *earlier* than a checkpoint written by a block that had already been mined. Every
+`block.timestamp - lastUpdate` in the accrual paths then underflowed. A real chain's clock is
+monotonic, so that exact trigger is local-only - but the *shape* of the failure is not: any venue view
+that reverts (a paused or removed Aave reserve, a bad proxy upgrade, a starved call) took `totalAssets`
+down with it, which breaks share pricing, the risk engine and the dashboard at once. The hedge leg had
+been given try/catch fallbacks early; the lending leg had been left unprotected. The fix closes the
+asymmetry and costs ~0.2% gas ([gas-report.md](gas-report.md)). The fallback reads adapter storage
+only, and understates (never overstates) NAV, so it cannot be used to mint shares cheaply; quoted
+liquidity collapses to the idle float, so the vault never advertises an exit it cannot honour.
 
 ## 3. Static analysis (Slither 0.11.6)
 

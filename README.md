@@ -22,12 +22,12 @@ USDC ─► ERC-4626 vault ─┬─► 10% USDC reserve ──► lending pool 
 
 | | |
 |---|---|
-| Tests | **223** Foundry (unit, fuzz, 11 invariants, scenarios, a16z ERC-4626 properties, resilience) + **24** simulator + **45** backend (23 against a live chain) |
+| Tests | **225** Foundry (unit, fuzz, 11 invariants, scenarios, a16z ERC-4626 properties, resilience) + **24** simulator + **45** backend (23 against a live chain) |
 | PnL reconciliation | `NAV − capital − attributed PnL` = **$0.0000** after a 90-day on-chain replay; checked after every random step in the invariant suite |
 | Delta | worst **2 bps** of NAV across the 90-day replay; ≤ 149 bps after any rebalance in a 3,000-step random walk |
 | Estimated net APY | **6.24%** at base market (gross 8.23%); Monte Carlo median **5.70%**, p5 4.48% (synthetic market) |
 | Gas | deposit **248k**, redeem **255k**, rebalance **1.22M** (isolated tx); deposit −31% after optimisation |
-| Real bugs found and fixed | 8, each with a regression test ([security.md](docs/security.md#2-bugs-found-during-development)) |
+| Real bugs found and fixed | 9, each with a regression test ([security.md](docs/security.md#2-bugs-found-during-development)) |
 
 ---
 
@@ -198,7 +198,7 @@ dashboard.
 
 ```bash
 make install                 # submodules + pnpm workspace
-make test                    # 223 contract tests
+make test                    # 225 contract tests
 docker run -d --name dnv-pg -e POSTGRES_USER=dnv -e POSTGRES_PASSWORD=dnv -e POSTGRES_DB=dnv -p 5476:5432 postgres:16-alpine
 make chain                   # Anvil on :8555 + deploy + export ABIs
 make history                 # 90 days of on-chain history (optional, ~2-3 min)

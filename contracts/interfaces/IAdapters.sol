@@ -21,6 +21,13 @@ interface ILendingAdapter {
     /// @return Net amount supplied (supplies - withdrawals of principal), for analytics.
     function principalOf(address asset) external view returns (uint256);
 
+    /// @return The venue balance recorded at the last interaction. Reads adapter storage only, so it
+    ///         answers even when the venue itself is unreadable; used as a valuation fallback.
+    function lastKnownBalance(address asset) external view returns (uint256);
+
+    /// @return Interest materialised up to the last interaction (storage only, same fallback role).
+    function checkpointedInterest(address asset) external view returns (uint256);
+
     /// @return Lifetime interest earned, including interest accrued since the last interaction.
     function cumulativeInterest(address asset) external view returns (uint256);
 

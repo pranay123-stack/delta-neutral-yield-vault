@@ -2,7 +2,7 @@
 
 | Layer | Framework | Tests | Command |
 |---|---|---|---|
-| Contracts | Foundry | **223** (unit, fuzz, invariant, scenario, ERC-4626 properties, resilience, gas, stress) | `forge test` |
+| Contracts | Foundry | **225** (unit, fuzz, invariant, scenario, ERC-4626 properties, resilience, gas, stress) | `forge test` |
 | Simulator | Vitest | **24** (incl. on-chain parity) | `pnpm --filter @dnv/simulator test` |
 | Backend | Vitest | **22 unit + 23 integration** | `pnpm --filter @dnv/backend test` (integration: `INTEGRATION=1`) |
 | Frontend | tsc + next build + headless Chrome | typecheck, production build of 10 routes, and every page rendered against a live API (fails on an API error, a crash boundary, or a stuck skeleton) | `make test-ts`, `make check-web` |
@@ -28,7 +28,7 @@
 | `EmergencyControllerTest` / `AccessControlMatrixTest` | 10 | pause asymmetry, breaker gating, terminal shutdown, guardian can't redirect funds, every privileged function rejects an outsider, one-tx role rotation |
 | `DeepDeclineTest` | 1 | regression for PnL crystallisation (a 60% decline without no-op churn) |
 | `GasGriefingTest` | 2 | every gas limit in a window: success ⇒ identical result |
-| `ResilienceTest` | 2 | both feeds dead with open positions: `totalAssets`, snapshot, risk, PnL views still answer at the last good price while share operations are blocked; perp venue unreadable but protocol oracle healthy |
+| `ResilienceTest` | 4 | both feeds dead with open positions: `totalAssets`, snapshot, risk, PnL views still answer at the last good price while share operations are blocked; perp venue unreadable but oracle healthy; **lending venue unreadable** (NAV falls back to the adapter checkpoint, quoted liquidity collapses to the float); **non-monotonic clock** (a call served before the last venue checkpoint) |
 | `StressWalkTest` | 2 | 3,000-step random walk; lazy-keeper walk that forces venue liquidations |
 | `SmokeTest` | 2 | bootstrap book, 7-day PnL reconciliation |
 
@@ -117,7 +117,7 @@ values a test would have to construct adversarially.
 ## Running it all
 
 ```bash
-forge test                                   # 223 contract tests
+forge test                                   # 225 contract tests
 FOUNDRY_PROFILE=deep forge test              # heavier fuzzing
 pnpm --filter @dnv/simulator test
 pnpm --filter @dnv/backend test

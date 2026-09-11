@@ -157,8 +157,7 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
         uint256 wethQty = _wethHeld();
         uint256 perpEq = _perpEquity(price);
         priceDependent = wethQty > 0 || perpAdapter.position().size != 0; // cash margin alone needs no price
-        nav = _usdc.balanceOf(address(this)) + lendingAdapter.balanceOf(address(_usdc)) + Math.mulDiv(wethQty, price, Q)
-            + perpEq;
+        nav = _usdc.balanceOf(address(this)) + _lendingBalance(address(_usdc)) + Math.mulDiv(wethQty, price, Q) + perpEq;
     }
 
     function isPriceDependent() external view override returns (bool) {
@@ -166,7 +165,15 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
     }
 
     function availableLiquidity() external view override returns (uint256) {
-        return _usdc.balanceOf(address(this)) + lendingAdapter.withdrawable(address(_usdc));
+        uint256 g = gasleft();
+        try lendingAdapter.withdrawable(address(_usdc)) returns (uint256 w) {
+            return _usdc.balanceOf(address(this)) + w;
+        } catch {
+            GasGuard.checkNotStarved(g);
+            // An unreadable venue is treated as illiquid: `maxWithdraw` shrinks to the float, so nobody
+            // is quoted liquidity the vault may not be able to deliver.
+            return _usdc.balanceOf(address(this));
+        }
     }
 
     function accounting() external view override returns (Accounting memory) {
@@ -379,7 +386,22 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
     // ------------------------------------------------------------------
 
     function _wethHeld() internal view returns (uint256) {
-        return lendingAdapter.balanceOf(weth) + IERC20(weth).balanceOf(address(this));
+        return _lendingBalance(weth) + IERC20(weth).balanceOf(address(this));
+    }
+
+    /// @dev Venue balance, or the adapter's last checkpointed balance if the venue view reverts (a
+    ///      paused/removed reserve, a bad upgrade). ERC-4626 requires `totalAssets` never to revert, and
+    ///      the hedge leg already has this treatment (`_perpEquity`) - the lending leg needs it too.
+    ///      The fallback understates by the interest accrued since the last interaction, which is the
+    ///      conservative direction, and a starved call still reverts rather than being priced stale.
+    function _lendingBalance(address token) internal view returns (uint256) {
+        uint256 g = gasleft();
+        try lendingAdapter.balanceOf(token) returns (uint256 b) {
+            return b;
+        } catch {
+            GasGuard.checkNotStarved(g);
+            return lendingAdapter.lastKnownBalance(token);
+        }
     }
 
     /// @dev Perp equity floored at zero (isolated margin: losses beyond margin are the venue's).

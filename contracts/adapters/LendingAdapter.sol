@@ -76,6 +76,16 @@ contract LendingAdapter is ILendingAdapter {
         return _principal[asset];
     }
 
+    /// @inheritdoc ILendingAdapter
+    function lastKnownBalance(address asset) external view override returns (uint256) {
+        return _lastBalance[asset];
+    }
+
+    /// @inheritdoc ILendingAdapter
+    function checkpointedInterest(address asset) external view override returns (uint256) {
+        return _interestCheckpointed[asset];
+    }
+
     function cumulativeInterest(address asset) external view override returns (uint256) {
         uint256 bal = pool.balanceOf(asset, address(this));
         uint256 last = _lastBalance[asset];

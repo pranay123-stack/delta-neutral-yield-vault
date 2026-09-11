@@ -340,7 +340,8 @@ contract MockPerpetualMarket is IPerpMarket, Ownable, ReentrancyGuard {
     }
 
     function _pendingIndex() internal view returns (int256) {
-        uint256 dt = block.timestamp - lastFundingUpdate;
+        // saturating: never underflow if a call is served before the last funding checkpoint
+        uint256 dt = block.timestamp > lastFundingUpdate ? block.timestamp - lastFundingUpdate : 0;
         if (dt == 0 || fundingRatePer8h == 0) return cumulativeFundingIndex;
         // USD per ETH accrued = rate * mark * dt / 8h
         int256 perEth = PerpMath.mulDivSigned(fundingRatePer8h, Math.mulDiv(markPrice(), dt, FUNDING_PERIOD), WAD);

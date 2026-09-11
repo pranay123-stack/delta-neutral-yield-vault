@@ -51,4 +51,52 @@ contract ResilienceTest is BaseTest {
         Types.PositionSnapshot memory s = positionManager.snapshot();
         assertEq(s.markPrice, s.price);
     }
+
+    /// A non-monotonic clock must not brick the views. Real chains only move forward, but a local
+    /// Anvil (evm_increaseTime, then blocks minted faster than wall time) can serve a call at a
+    /// timestamp earlier than a venue's last accrual checkpoint. ERC-4626 requires `totalAssets` and
+    /// the max/preview functions never to revert, and the risk engine is needed most when things are odd.
+    function test_viewsSurviveNonMonotonicClock() public {
+        vm.warp(block.timestamp + 6 hours);
+        _setPrice(3000e8); // fresh oracle round stamped at T
+
+        vm.warp(block.timestamp + 3); // the venue checkpoints land in later blocks, as they do on Anvil
+        lendingPool.setUtilization(address(usdc), 0.85e18);
+        perp.setFundingRate(0.0001e18);
+        vault.accrueFees();
+
+        vm.warp(block.timestamp - 2); // ... and the next call is served two seconds earlier
+
+        uint256 nav = vault.totalAssets();
+        assertGt(nav, 0, "NAV still priced");
+        vault.maxWithdraw(alice);
+        vault.maxRedeem(alice);
+        vault.maxDeposit(alice);
+        vault.previewRedeem(vault.balanceOf(alice));
+        vault.previewDeposit(1000e6);
+        positionManager.snapshot();
+        positionManager.pnl();
+        riskManager.assess();
+        (, bool execute) = rebalancer.previewRebalance();
+        execute; // must answer, whatever it decides
+    }
+
+    /// The lending venue itself is unreadable (paused reserve, bad upgrade) while everything else is
+    /// fine: NAV falls back to the adapter's last checkpointed balance, and the vault quotes no
+    /// liquidity it might not be able to deliver.
+    function test_lendingVenueUnreadable_navFallsBackToCheckpoint() public {
+        uint256 navBefore = vault.totalAssets();
+        vm.mockCallRevert(address(lendingPool), abi.encodeWithSignature("balanceOf(address,address)"), "venue down");
+
+        uint256 nav = vault.totalAssets();
+        assertApproxEqRel(nav, navBefore, 0.001e18, "priced from the last checkpoint");
+        assertLe(nav, navBefore, "fallback understates, never overstates");
+
+        // withdrawable() reads the venue too, so quoted liquidity collapses to the idle float
+        assertEq(vault.maxWithdraw(alice), usdc.balanceOf(address(vault)) + usdc.balanceOf(address(strategy)));
+
+        positionManager.snapshot();
+        positionManager.pnl();
+        riskManager.assess();
+    }
 }

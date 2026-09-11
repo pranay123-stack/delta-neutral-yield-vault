@@ -145,9 +145,13 @@ After shutdown NAV is pure USDC and exits need no oracle at all.
 
 - **NAV** = strategy float + USDC reserve (incl. accrued interest) + WETH x oracle price + max(perp
   equity, 0). Interest and funding are marked continuously, so there is no harvest step to sandwich.
-- **`totalAssets()` never reverts.** If the oracle is unhealthy it values at the last good price, but
-  every *state-changing* share operation is blocked while positions are open and the oracle is
-  unhealthy (NAV unknown).
+- **`totalAssets()` never reverts.** If the oracle is unhealthy it values at the last good price; if a
+  *venue* view reverts (paused reserve, bad upgrade) each leg falls back to adapter storage - the perp
+  to local maths on the stored position, the lending leg to its last checkpointed balance - which
+  understates rather than overstates NAV. Every *state-changing* share operation is still blocked while
+  positions are open and the oracle is unhealthy (NAV unknown), and quoted liquidity drops to the idle
+  float when the lending venue cannot be read. A gas-starved read reverts instead of being priced stale
+  ([GasGuard](../contracts/libraries/GasGuard.sol)).
 - **PnL attribution reconciles by construction:** `strategyNav − netCapital == netPnl` (see
   [pnl-accounting.md](pnl-accounting.md)); the invariant suite checks this after every random step.
 

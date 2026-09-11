@@ -84,7 +84,14 @@ export async function runMarketDriver(
     await send(d.lendingPool, c.lendingPool.abi, "setUtilization", [d.usdc, toFixed(m.usdcUtilization, 18)]);
     await send(d.lendingPool, c.lendingPool.abi, "setUtilization", [d.weth, toFixed(m.wethUtilization, 18)]);
 
-    if (o.userFlows) await userFlow(i, rng, c, d, send);
+    if (o.userFlows) {
+      // A demo user's deposit/withdrawal is not worth killing a multi-minute replay over: log and skip.
+      try {
+        await userFlow(i, rng, c, d, send);
+      } catch (err) {
+        o.log?.warn({ err, step: i }, "user flow skipped");
+      }
+    }
 
     const tick = await keeper.tick();
     if (tick.rebalanced) rebalances++;

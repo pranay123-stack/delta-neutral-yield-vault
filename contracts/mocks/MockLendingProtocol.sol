@@ -211,7 +211,8 @@ contract MockLendingProtocol is ILendingPool, Ownable {
     function _projected(Reserve storage r) internal view returns (uint256 index, uint256 debt) {
         index = r.liquidityIndex;
         debt = r.totalDebt;
-        uint256 dt = block.timestamp - r.lastUpdate;
+        // saturating: a local chain can serve a call at a timestamp earlier than the last checkpoint
+        uint256 dt = block.timestamp > r.lastUpdate ? block.timestamp - r.lastUpdate : 0;
         if (dt == 0 || !r.active) return (index, debt);
         uint256 supplied = Math.mulDiv(r.totalScaled, index, WAD);
         uint256 u = _utilization(supplied, debt);

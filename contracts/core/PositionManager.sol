@@ -17,8 +17,9 @@ import {Types} from "../libraries/Types.sol";
 /// @title PositionManager
 /// @notice Read-only aggregation of every position into a single snapshot plus the derived delta,
 ///         liquidation and PnL reports. Used by the risk engine, the rebalancer, the backend and UI.
-/// @dev Never reverts on a broken venue feed: perp reads are wrapped and fall back to local maths at
-///      the oracle's last good price, so monitoring keeps working exactly when it matters most.
+/// @dev Never reverts on a broken venue: perp reads fall back to local maths at the oracle's last good
+///      price and lending reads to the adapter's own checkpoint, so monitoring keeps working exactly
+///      when it matters most. A gas-starved read still reverts rather than being reported as stale.
 contract PositionManager is IPositionManager {
     using SafeCast for uint256;
     using SafeCast for int256;
@@ -47,11 +48,11 @@ contract PositionManager is IPositionManager {
         (s.price, s.priceHealthy) = strategy.oracle().getPriceOrLastGood(_weth);
         s.vaultIdle = _usdc.balanceOf(vault);
         s.strategyFloat = _usdc.balanceOf(address(strategy));
-        s.reserveAssets = lending.balanceOf(address(_usdc));
-        s.longQty = lending.balanceOf(_weth) + IERC20(_weth).balanceOf(address(strategy));
+        s.reserveAssets = _lendingBalance(lending, address(_usdc));
+        s.longQty = _lendingBalance(lending, _weth) + IERC20(_weth).balanceOf(address(strategy));
         s.longValue = Math.mulDiv(s.longQty, s.price, PerpMath.QTY_PRICE_TO_USD6);
-        s.usdcSupplyRate = lending.supplyRate(address(_usdc));
-        s.wethSupplyRate = lending.supplyRate(_weth);
+        s.usdcSupplyRate = _supplyRate(lending, address(_usdc));
+        s.wethSupplyRate = _supplyRate(lending, _weth);
 
         IPerpMarket.Position memory p = perp.position();
         s.perpSize = p.size;
@@ -100,9 +101,9 @@ contract PositionManager is IPositionManager {
         IStrategyManager.Accounting memory a
     ) internal view {
         ILendingAdapter lending = strategy.lendingAdapter();
-        b.lendingIncomeUsdc = lending.cumulativeInterest(address(_usdc)).toInt256();
+        b.lendingIncomeUsdc = _cumulativeInterest(lending, address(_usdc)).toInt256();
         b.lendingIncomeWeth =
-            Math.mulDiv(lending.cumulativeInterest(_weth), s.price, PerpMath.QTY_PRICE_TO_USD6).toInt256();
+            Math.mulDiv(_cumulativeInterest(lending, _weth), s.price, PerpMath.QTY_PRICE_TO_USD6).toInt256();
         // spot leg (vs oracle mid); WETH interest is carved out, unrealised is the residual
         b.spotRealizedPnl = a.spotRealizedPnl;
         b.spotUnrealizedPnl = s.longValue.toInt256() - a.spotCostBasis.toInt256() - b.lendingIncomeWeth;
@@ -146,6 +147,41 @@ contract PositionManager is IPositionManager {
     // ------------------------------------------------------------------
     // Internals
     // ------------------------------------------------------------------
+
+    // ---- venue fallbacks -------------------------------------------------------------------------
+    // The lending venue can be unreadable (paused or removed reserve, a bad upgrade) while everything
+    // else is fine. Monitoring must keep answering, so each read falls back to adapter storage (the
+    // last checkpoint) or to zero, and a gas-starved read still reverts instead of being priced stale.
+
+    function _lendingBalance(ILendingAdapter lending, address token) internal view returns (uint256) {
+        uint256 g = gasleft();
+        try lending.balanceOf(token) returns (uint256 b) {
+            return b;
+        } catch {
+            GasGuard.checkNotStarved(g);
+            return lending.lastKnownBalance(token);
+        }
+    }
+
+    function _supplyRate(ILendingAdapter lending, address token) internal view returns (uint256) {
+        uint256 g = gasleft();
+        try lending.supplyRate(token) returns (uint256 r) {
+            return r;
+        } catch {
+            GasGuard.checkNotStarved(g);
+            return 0;
+        }
+    }
+
+    function _cumulativeInterest(ILendingAdapter lending, address token) internal view returns (uint256) {
+        uint256 g = gasleft();
+        try lending.cumulativeInterest(token) returns (uint256 i) {
+            return i;
+        } catch {
+            GasGuard.checkNotStarved(g);
+            return lending.checkpointedInterest(token);
+        }
+    }
 
     function _fillPerp(Types.PositionSnapshot memory s, IPerpAdapter perp, IPerpMarket.Position memory p)
         internal
