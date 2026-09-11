@@ -31,18 +31,21 @@ const SPEC_ENDPOINTS = [
 
 describe.skipIf(!run)("API integration", () => {
   let app: FastifyInstance;
-  const cfg = loadConfig();
-  const db = createPool(cfg.DATABASE_URL);
+  let db: ReturnType<typeof createPool>;
 
+  // Config is loaded lazily: it reads the deployment file, which only exists once a chain has been
+  // deployed. A skipped suite (no INTEGRATION=1, e.g. a fresh clone in CI) must not touch it.
   beforeAll(async () => {
+    const cfg = loadConfig();
+    db = createPool(cfg.DATABASE_URL);
     await migrate(db);
     app = await buildServer(new ApiService(cfg, createChain(cfg), db));
     await app.ready();
   });
 
   afterAll(async () => {
-    await app.close();
-    await db.end();
+    await app?.close();
+    await db?.end();
   });
 
   it.each(SPEC_ENDPOINTS)("GET %s -> 200 JSON", async (url) => {
