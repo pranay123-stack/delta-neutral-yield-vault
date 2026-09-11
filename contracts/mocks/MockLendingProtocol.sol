@@ -169,6 +169,13 @@ contract MockLendingProtocol is ILendingPool, Ownable {
         return Math.mulDiv(r.totalScaled, index, WAD);
     }
 
+    /// @notice Supplier claims at the *stored* index, i.e. interest that has been materialised.
+    ///         Projected interest (in `totalSupplied`) is minted at the next accrual, which every
+    ///         supply/withdraw triggers first - so `balance >= storedTotalSupplied` is the solvency bound.
+    function storedTotalSupplied(address asset) external view returns (uint256) {
+        return _totalSupplied(_reserves[asset]);
+    }
+
     function totalDebt(address asset) external view returns (uint256) {
         (, uint256 debt) = _projected(_reserves[asset]);
         return debt;

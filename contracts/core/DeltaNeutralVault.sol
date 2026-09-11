@@ -246,7 +246,8 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
     function _accrueFees() internal {
         // Never crystallise fees on an untrusted NAV.
         if (address(strategy) == address(0) || !isOperational()) return;
-        (uint256 mgmt, uint256 perf) = feeManager.accrue(totalAssets(), totalSupply());
+        (uint256 a, uint256 s) = _feeBasis(totalAssets());
+        (uint256 mgmt, uint256 perf) = feeManager.accrue(a, s);
         uint256 feeShares = mgmt + perf;
         if (feeShares > 0) {
             address recipient = feeManager.feeRecipient();
@@ -257,8 +258,19 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
 
     function _pendingFeeShares(uint256 ta) internal view returns (uint256) {
         if (address(strategy) == address(0)) return 0;
-        (uint256 mgmt, uint256 perf) = feeManager.previewAccrual(ta, totalSupply());
+        (uint256 a, uint256 s) = _feeBasis(ta);
+        (uint256 mgmt, uint256 perf) = feeManager.previewAccrual(a, s);
         return mgmt + perf;
+    }
+
+    /// @dev Fees must measure share price exactly the way conversions do - with OZ's virtual
+    ///      assets/shares - otherwise the gap between raw A/S and the virtual price users transact at
+    ///      shows up as a phantom "gain" and a performance fee crystallises on it. With an empty vault
+    ///      there is nothing to charge (FeeManager just restarts its clock).
+    function _feeBasis(uint256 ta) internal view returns (uint256 assets, uint256 supply) {
+        uint256 s = totalSupply();
+        if (s == 0) return (0, 0);
+        return (ta + 1, s + 10 ** DECIMALS_OFFSET);
     }
 
     function _feeOnRaw(uint256 assets) internal view returns (uint256) {

@@ -9,6 +9,8 @@ evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
 bytecode_hash = "none"
+# long stress walks run thousands of full-system steps in one test
+gas_limit = "18446744073709551615"
 fs_permissions = [
   { access = "read-write", path = "./deployments" },
   { access = "read", path = "./out" },
