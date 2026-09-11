@@ -1,0 +1,52 @@
+[profile.default]
+src = "contracts"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+fs_permissions = [
+  { access = "read-write", path = "./deployments" },
+  { access = "read", path = "./out" },
+]
+remappings = [
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "forge-std/=lib/forge-std/src/",
+  "erc4626-tests/=lib/erc4626-tests/",
+]
+
+[fuzz]
+runs = 512
+seed = "0x2a"
+
+[invariant]
+runs = 128
+depth = 64
+fail_on_revert = false
+show_metrics = true
+
+# CI profile: heavier fuzzing, used by `make test-deep`
+[profile.deep.fuzz]
+runs = 5000
+
+[profile.deep.invariant]
+runs = 512
+depth = 128
+
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+quote_style = "double"
+number_underscore = "thousands"
+sort_imports = true
+
+[lint]
+# Public immutables are ABI getters (`vault()`, `strategy()`); SCREAMING_CASE would leak into the
+# ABI and the TypeScript bindings. OpenZeppelin follows the same convention.
+exclude_lints = ["screaming-snake-case-immutable"]
