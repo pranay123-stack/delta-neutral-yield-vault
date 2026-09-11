@@ -5,7 +5,7 @@
 | Contracts | Foundry | **225** (unit, fuzz, invariant, scenario, ERC-4626 properties, resilience, gas, stress) | `forge test` |
 | Simulator | Vitest | **24** (incl. on-chain parity) | `pnpm --filter @dnv/simulator test` |
 | Backend | Vitest | **22 unit + 23 integration** | `pnpm --filter @dnv/backend test` (integration: `INTEGRATION=1`) |
-| Frontend | tsc + next build + headless Chrome | typecheck, production build of 10 routes, and every page rendered against a live API (fails on an API error, a crash boundary, or a stuck skeleton) | `make test-ts`, `make check-web` |
+| Frontend | tsc + next build + Playwright | typecheck, production build of 10 routes, every page rendered against a live API (fails on an API error, a crash boundary or a stuck skeleton), and a **browser depositor flow** that sends real transactions through wagmi | `make test-ts`, `make check-web` |
 | System | scripts | 90-day on-chain replay, 16-step demo, fresh-chain e2e | `make history`, `make demo`, `make e2e` |
 
 ## Contract suite
@@ -86,6 +86,27 @@ liquidations.
   keeps trailing APYs defined from its first point, the optimizer's `current` equals the live estimate,
   exact delta agrees with the on-chain integer, alerts carry units and risk events decoded flags, and the
   OpenAPI document covers every endpoint.
+
+## Browser checks (`make check-web`)
+
+Two things a typecheck and a production build cannot prove: that the pages actually render live data,
+and that the wallet wiring actually moves money.
+
+1. `scripts/check-frontend.sh` renders all 10 routes in headless Chrome against a running API and fails
+   on an API error, a crash boundary or a stuck loading skeleton.
+2. `frontend/e2e/vault-flow.spec.ts` (Playwright, driving the system Chrome - no browser download)
+   walks one depositor session against the local Anvil: connect a demo wallet → faucet → approve +
+   deposit → withdraw → an over-limit withdrawal that must be **refused at simulation with a decoded
+   `ERC4626ExceededMaxWithdraw`** → `redeemWithUnwind` of exactly the shares the test minted. Every
+   assertion is on the *change* a step caused, so it does not depend on replay history, and the run
+   fails on any uncaught client-side error.
+
+Verified against the chain rather than the UI's own numbers: one run advanced the chain by exactly 4
+blocks (the approve was already unlimited), moved the wallet's USDC by +25,000.00 net and returned its
+share balance to within 0.00005 dnUSDC of where it started - and the rejected withdrawal mined nothing.
+
+Both need a running stack (`make chain && make history && make api && make web`), so CI runs the
+contract, TypeScript, frontend-build and `e2e.sh` jobs, and these two are a local gate.
 
 ## Coverage
 

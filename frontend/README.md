@@ -86,9 +86,16 @@ simulator's own types, which the shared package does not re-export (`/strategy/a
 ```bash
 pnpm --filter @dnv/frontend typecheck
 pnpm --filter @dnv/frontend build
-make check-web            # renders all 10 pages in headless Chrome against a live API
+pnpm --filter @dnv/frontend test:e2e   # Playwright: the depositor flow in a real browser
+make check-web                         # both browser checks (needs a running stack)
 ```
 
-`check-web` fails a page that shows an API error, hits a crash boundary, or is still displaying
-loading skeletons once data should have arrived - the cheap end-to-end check that the dashboard and
-the API still agree.
+`make check-web` does two things against a running stack (Anvil :8555, API :4010, dashboard :3010):
+
+1. renders all 10 pages in headless Chrome and fails a page that shows an API error, hits a crash
+   boundary, or is still showing loading skeletons once data should have arrived;
+2. runs `e2e/vault-flow.spec.ts`, which connects a demo wallet and sends **real transactions**:
+   faucet → approve + deposit → withdraw → an over-limit withdrawal that must be refused at
+   simulation with a decoded `ERC4626ExceededMaxWithdraw` → `redeemWithUnwind` of exactly the shares
+   it minted, leaving the demo state as it found it. Playwright drives the system Chrome
+   (`channel: "chrome"`), so no browser download is needed.

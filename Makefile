@@ -51,8 +51,9 @@ api: ## run API + indexer + keeper
 web: ## run the dashboard on :3010 (needs the API)
 	pnpm --filter @dnv/frontend dev
 
-check-web: ## render every dashboard page headlessly and fail on API/render errors
+check-web: ## browser checks against a running stack: render all 10 pages + drive the depositor flow
 	./scripts/check-frontend.sh
+	pnpm --filter @dnv/frontend test:e2e
 
 demo: ## the 16-step scripted demo on an isolated chain
 	./scripts/demo.sh

@@ -172,8 +172,11 @@ warn / high / critical thresholds, oracle, breakers, alerts, on-chain risk event
 waterfall reconciling to NAV), **Rebalancing** (trigger history and cost per rebalance), **Simulation**
 (scenarios, custom shocks, Monte Carlo, optimizer), **Transactions** (deposits and withdrawals).
 
-`make check-web` renders all ten in headless Chrome against a live API and fails on an API error, a
-crash boundary or a stuck loading skeleton.
+`make check-web` is the browser gate: it renders all ten pages in headless Chrome against a live API
+(failing on an API error, a crash boundary or a stuck skeleton) and then drives a full depositor
+session with Playwright - connect, faucet, approve + deposit, withdraw, a rejected over-limit
+withdrawal with a decoded revert, and `redeemWithUnwind` - sending real transactions to the local
+chain.
 
 ---
 
