@@ -1,0 +1,1688 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Delta-Neutral Vault API",
+    "version": "0.1.0",
+    "description": "Read API over the delta-neutral ERC-4626 vault running against LOCAL MOCK MARKETS (no real funds). Money is in human units (USD numbers, ETH numbers), ratios in basis points, rates as fractions. `blockTimestamp` / `ts` fields are chain time: the demo warps time to build history."
+  },
+  "components": {
+    "schemas": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Service health",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "chain": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {}
+                    },
+                    "db": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {}
+                    },
+                    "indexer": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {}
+                    },
+                    "keeper": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault": {
+      "get": {
+        "summary": "Vault overview",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "address": {
+                      "type": "string"
+                    },
+                    "asset": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "symbol": {
+                      "type": "string"
+                    },
+                    "tvlUsd": {
+                      "type": "number",
+                      "description": "Total assets: idle USDC + strategy NAV"
+                    },
+                    "sharePrice": {
+                      "type": "number",
+                      "description": "USDC per share"
+                    },
+                    "totalSupply": {
+                      "type": "number"
+                    },
+                    "idleUsd": {
+                      "type": "number"
+                    },
+                    "availableLiquidityUsd": {
+                      "type": "number",
+                      "description": "Withdrawable without trading (idle + lending reserve)"
+                    },
+                    "depositCapUsd": {
+                      "type": "number"
+                    },
+                    "operational": {
+                      "type": "boolean",
+                      "description": "false while the oracle is unhealthy and positions are open"
+                    },
+                    "depositsPaused": {
+                      "type": "boolean"
+                    },
+                    "strategyPaused": {
+                      "type": "boolean"
+                    },
+                    "shutdown": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/metrics": {
+      "get": {
+        "summary": "Headline metrics (TVL, APYs, delta, leverage, risk)",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "tvlUsd": {
+                      "type": "number"
+                    },
+                    "sharePrice": {
+                      "type": "number"
+                    },
+                    "netApy": {
+                      "type": [
+                        "null",
+                        "number"
+                      ],
+                      "description": "Realised, annualised share-price growth over the trailing 30 days (fraction)"
+                    },
+                    "grossApy": {
+                      "type": [
+                        "null",
+                        "number"
+                      ],
+                      "description": "Realised carry (lending + funding) / average TVL before costs and fees"
+                    },
+                    "estimatedNetApy": {
+                      "type": "number",
+                      "description": "Forward-looking estimate at current rates (simulator estimation engine)"
+                    },
+                    "lendingApy": {
+                      "type": "number"
+                    },
+                    "usdcSupplyApr": {
+                      "type": "number"
+                    },
+                    "wethSupplyApr": {
+                      "type": "number"
+                    },
+                    "fundingRatePer8h": {
+                      "type": "number"
+                    },
+                    "fundingApr": {
+                      "type": "number"
+                    },
+                    "netDeltaBps": {
+                      "type": "number"
+                    },
+                    "netDeltaUsd": {
+                      "type": "number"
+                    },
+                    "hedgeRatio": {
+                      "type": "number"
+                    },
+                    "leverage": {
+                      "type": "number"
+                    },
+                    "liquidationDistanceBps": {
+                      "type": [
+                        "null",
+                        "number"
+                      ]
+                    },
+                    "drawdownBps": {
+                      "type": "number"
+                    },
+                    "totalPnlUsd": {
+                      "type": "number",
+                      "description": "Strategy PnL net of vault fees"
+                    },
+                    "riskState": {
+                      "type": "string",
+                      "description": "NORMAL | WARNING | HIGH_RISK | EMERGENCY",
+                      "enum": [
+                        "NORMAL",
+                        "WARNING",
+                        "HIGH_RISK",
+                        "EMERGENCY"
+                      ]
+                    },
+                    "ethPrice": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/performance": {
+      "get": {
+        "summary": "Historical series + summary statistics",
+        "tags": [
+          "vault"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "in": "query",
+            "name": "days",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "properties": {
+                          "ts": {
+                            "type": "integer"
+                          },
+                          "tvlUsd": {
+                            "type": "number"
+                          },
+                          "sharePrice": {
+                            "type": "number"
+                          },
+                          "ethPrice": {
+                            "type": "number"
+                          },
+                          "netDeltaBps": {
+                            "type": "number"
+                          },
+                          "leverage": {
+                            "type": "number"
+                          },
+                          "drawdownBps": {
+                            "type": "number"
+                          },
+                          "fundingRatePer8h": {
+                            "type": "number"
+                          },
+                          "apy7d": {
+                            "type": [
+                              "null",
+                              "number"
+                            ]
+                          },
+                          "apy30d": {
+                            "type": [
+                              "null",
+                              "number"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "summary": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "fromTs": {
+                          "type": "integer"
+                        },
+                        "toTs": {
+                          "type": "integer"
+                        },
+                        "periodReturn": {
+                          "type": "number"
+                        },
+                        "annualizedReturn": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "maxDrawdownBps": {
+                          "type": "number"
+                        },
+                        "volatilityAnnual": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "sharpe": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "rebalances": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/positions": {
+      "get": {
+        "summary": "Every leg: reserve, long WETH, perp short",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "ethPrice": {
+                      "type": "number"
+                    },
+                    "oracleHealthy": {
+                      "type": "boolean"
+                    },
+                    "idle": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "vaultUsd": {
+                          "type": "number"
+                        },
+                        "strategyFloatUsd": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "reserve": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "suppliedUsd": {
+                          "type": "number"
+                        },
+                        "principalUsd": {
+                          "type": "number"
+                        },
+                        "interestUsd": {
+                          "type": "number"
+                        },
+                        "supplyApr": {
+                          "type": "number"
+                        },
+                        "utilization": {
+                          "type": "number"
+                        },
+                        "withdrawableUsd": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "long": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "wethQty": {
+                          "type": "number"
+                        },
+                        "valueUsd": {
+                          "type": "number"
+                        },
+                        "principalQty": {
+                          "type": "number"
+                        },
+                        "interestQty": {
+                          "type": "number"
+                        },
+                        "supplyApr": {
+                          "type": "number"
+                        },
+                        "utilization": {
+                          "type": "number"
+                        },
+                        "costBasisUsd": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "perp": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "size": {
+                          "type": "number",
+                          "description": "ETH, negative = short"
+                        },
+                        "entryPrice": {
+                          "type": "number"
+                        },
+                        "markPrice": {
+                          "type": "number"
+                        },
+                        "markEntryPrice": {
+                          "type": "number"
+                        },
+                        "notionalUsd": {
+                          "type": "number"
+                        },
+                        "marginUsd": {
+                          "type": "number"
+                        },
+                        "equityUsd": {
+                          "type": "number"
+                        },
+                        "unrealizedPnlUsd": {
+                          "type": "number"
+                        },
+                        "pendingFundingUsd": {
+                          "type": "number"
+                        },
+                        "leverage": {
+                          "type": "number"
+                        },
+                        "liquidationPrice": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "liquidationDistanceBps": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "maintenanceMarginUsd": {
+                          "type": "number"
+                        },
+                        "collateralRatio": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "fundingRatePer8h": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "allocation": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "reservePct": {
+                          "type": "number"
+                        },
+                        "longPct": {
+                          "type": "number"
+                        },
+                        "perpPct": {
+                          "type": "number"
+                        },
+                        "idlePct": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/risk": {
+      "get": {
+        "summary": "Risk engine assessment",
+        "tags": [
+          "risk"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "state": {
+                      "type": "string",
+                      "description": "NORMAL | WARNING | HIGH_RISK | EMERGENCY",
+                      "enum": [
+                        "NORMAL",
+                        "WARNING",
+                        "HIGH_RISK",
+                        "EMERGENCY"
+                      ]
+                    },
+                    "persistedState": {
+                      "type": "string",
+                      "description": "NORMAL | WARNING | HIGH_RISK | EMERGENCY",
+                      "enum": [
+                        "NORMAL",
+                        "WARNING",
+                        "HIGH_RISK",
+                        "EMERGENCY"
+                      ]
+                    },
+                    "flags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "metrics": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": [
+                              "null",
+                              "number"
+                            ]
+                          },
+                          "unit": {
+                            "type": "string"
+                          },
+                          "level": {
+                            "type": "string",
+                            "description": "NORMAL | WARNING | HIGH_RISK | EMERGENCY",
+                            "enum": [
+                              "NORMAL",
+                              "WARNING",
+                              "HIGH_RISK",
+                              "EMERGENCY"
+                            ]
+                          },
+                          "higherIsWorse": {
+                            "type": "boolean"
+                          },
+                          "thresholds": {
+                            "type": "object",
+                            "additionalProperties": true,
+                            "properties": {
+                              "warn": {
+                                "type": "number"
+                              },
+                              "high": {
+                                "type": "number"
+                              },
+                              "critical": {
+                                "type": [
+                                  "null",
+                                  "number"
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "peakSharePrice": {
+                      "type": "number"
+                    },
+                    "oracle": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "status": {
+                          "type": "string"
+                        },
+                        "price": {
+                          "type": "number"
+                        },
+                        "lastGoodPrice": {
+                          "type": "number"
+                        },
+                        "lastGoodAt": {
+                          "type": "integer"
+                        },
+                        "shutdown": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "liquidation": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "markPrice": {
+                          "type": "number"
+                        },
+                        "liquidationPrice": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "distanceBps": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "safetyBufferBps": {
+                          "type": [
+                            "null",
+                            "number"
+                          ]
+                        },
+                        "leverage": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "circuitBreakers": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "depositsPaused": {
+                          "type": "boolean"
+                        },
+                        "strategyPaused": {
+                          "type": "boolean"
+                        },
+                        "shutdown": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "limits": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "maxSlippageBps": {
+                          "type": "number"
+                        },
+                        "maxPositionNotionalUsd": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/delta": {
+      "get": {
+        "summary": "Delta report",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "longExposureUsd": {
+                      "type": "number"
+                    },
+                    "shortExposureUsd": {
+                      "type": "number"
+                    },
+                    "grossExposureUsd": {
+                      "type": "number"
+                    },
+                    "netDeltaQty": {
+                      "type": "number"
+                    },
+                    "netDeltaUsd": {
+                      "type": "number"
+                    },
+                    "deltaBps": {
+                      "type": "number",
+                      "description": "Net delta as a share of NAV"
+                    },
+                    "hedgeRatioBps": {
+                      "type": "number"
+                    },
+                    "targetPerpSize": {
+                      "type": "number"
+                    },
+                    "requiredPerpSizeChange": {
+                      "type": "number"
+                    },
+                    "requiredHedgeChangeUsd": {
+                      "type": "number"
+                    },
+                    "bandBps": {
+                      "type": "number"
+                    },
+                    "effectiveBandBps": {
+                      "type": "number",
+                      "description": "Tolerance after volatility scaling"
+                    },
+                    "withinBand": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/funding": {
+      "get": {
+        "summary": "Funding rate, income and history",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "ratePer8h": {
+                      "type": "number"
+                    },
+                    "apr": {
+                      "type": "number"
+                    },
+                    "settledFundingUsd": {
+                      "type": "number"
+                    },
+                    "pendingFundingUsd": {
+                      "type": "number"
+                    },
+                    "cumulativeFundingUsd": {
+                      "type": "number"
+                    },
+                    "shortNotionalUsd": {
+                      "type": "number"
+                    },
+                    "annualizedIncomeUsd": {
+                      "type": "number"
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "properties": {
+                          "ts": {
+                            "type": "integer"
+                          },
+                          "ratePer8h": {
+                            "type": "number"
+                          },
+                          "cumulativeFundingUsd": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    "settlements": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "properties": {
+                          "ts": {
+                            "type": "integer"
+                          },
+                          "blockNumber": {
+                            "type": "integer"
+                          },
+                          "amountUsd": {
+                            "type": "number"
+                          },
+                          "txHash": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/pnl": {
+      "get": {
+        "summary": "PnL attribution (reconciles to NAV)",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "lendingIncomeUsdc": {
+                      "type": "number"
+                    },
+                    "lendingIncomeWeth": {
+                      "type": "number"
+                    },
+                    "fundingIncome": {
+                      "type": "number"
+                    },
+                    "spotRealizedPnl": {
+                      "type": "number"
+                    },
+                    "spotUnrealizedPnl": {
+                      "type": "number"
+                    },
+                    "perpRealizedPnl": {
+                      "type": "number"
+                    },
+                    "perpUnrealizedPnl": {
+                      "type": "number"
+                    },
+                    "tradingFees": {
+                      "type": "number"
+                    },
+                    "slippage": {
+                      "type": "number"
+                    },
+                    "badDebtAbsorbed": {
+                      "type": "number"
+                    },
+                    "strategyNetPnl": {
+                      "type": "number"
+                    },
+                    "managementFees": {
+                      "type": "number"
+                    },
+                    "performanceFees": {
+                      "type": "number"
+                    },
+                    "netPnlAfterFees": {
+                      "type": "number"
+                    },
+                    "netCapital": {
+                      "type": "number"
+                    },
+                    "strategyNav": {
+                      "type": "number"
+                    },
+                    "reconciliationResidualUsd": {
+                      "type": "number",
+                      "description": "strategyNav - netCapital - strategyNetPnl; ~0 by construction"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/fees": {
+      "get": {
+        "summary": "Fee configuration and collected fees",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "managementFeeBps": {
+                      "type": "number"
+                    },
+                    "performanceFeeBps": {
+                      "type": "number"
+                    },
+                    "withdrawalFeeBps": {
+                      "type": "number"
+                    },
+                    "caps": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "managementFeeBps": {
+                          "type": "number"
+                        },
+                        "performanceFeeBps": {
+                          "type": "number"
+                        },
+                        "withdrawalFeeBps": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "highWaterMark": {
+                      "type": "number"
+                    },
+                    "sharePrice": {
+                      "type": "number"
+                    },
+                    "aboveHighWaterMark": {
+                      "type": "boolean"
+                    },
+                    "totalManagementFeesUsd": {
+                      "type": "number"
+                    },
+                    "totalPerformanceFeesUsd": {
+                      "type": "number"
+                    },
+                    "feeRecipient": {
+                      "type": "string"
+                    },
+                    "feeRecipientShares": {
+                      "type": "number"
+                    },
+                    "feeRecipientValueUsd": {
+                      "type": "number"
+                    },
+                    "lastAccrual": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/transactions": {
+      "get": {
+        "summary": "Deposits and withdrawals",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "ts": {
+                        "type": "integer"
+                      },
+                      "blockNumber": {
+                        "type": "integer"
+                      },
+                      "txHash": {
+                        "type": "string"
+                      },
+                      "owner": {
+                        "type": "string"
+                      },
+                      "assetsUsd": {
+                        "type": "number"
+                      },
+                      "shares": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strategy": {
+      "get": {
+        "summary": "Targets, params, vol, next rebalance plan",
+        "tags": [
+          "strategy"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "chainId": {
+                      "type": "integer"
+                    },
+                    "blockNumber": {
+                      "type": "integer"
+                    },
+                    "blockTimestamp": {
+                      "type": "integer",
+                      "description": "Chain time (unix s). The local demo warps time, so this is the simulated clock."
+                    },
+                    "targets": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "leverage": {
+                          "type": "number"
+                        },
+                        "hedgeRatio": {
+                          "type": "number"
+                        },
+                        "reservePct": {
+                          "type": "number"
+                        },
+                        "defensiveReservePct": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "bounds": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {}
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {}
+                    },
+                    "effectiveLeverage": {
+                      "type": "number"
+                    },
+                    "annualizedVolBps": {
+                      "type": "number"
+                    },
+                    "defensive": {
+                      "type": "boolean"
+                    },
+                    "lastRebalanceAt": {
+                      "type": "integer"
+                    },
+                    "rebalanceCount": {
+                      "type": "integer"
+                    },
+                    "nextPlan": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "execute": {
+                          "type": "boolean"
+                        },
+                        "urgent": {
+                          "type": "boolean"
+                        },
+                        "triggers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "sweepIdleUsd": {
+                          "type": "number"
+                        },
+                        "longUsdDelta": {
+                          "type": "number"
+                        },
+                        "marginDelta": {
+                          "type": "number"
+                        },
+                        "estimatedCostUsd": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strategy/apy": {
+      "get": {
+        "summary": "Expected net APY estimate + optimizer",
+        "tags": [
+          "strategy"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "estimate": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {},
+                      "description": "ApyEstimate from the simulator estimation engine"
+                    },
+                    "optimizer": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {
+                        "recommendation": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/strategy/scenarios": {
+      "get": {
+        "summary": "Scenario catalogue A-J under live on-chain config",
+        "tags": [
+          "strategy"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "ethMovePct": {
+                        "type": "number"
+                      },
+                      "withKeeper": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "properties": {}
+                      },
+                      "withoutKeeper": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "properties": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rebalance/history": {
+      "get": {
+        "summary": "Executed rebalances (indexed events)",
+        "tags": [
+          "strategy"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "ts": {
+                        "type": "integer"
+                      },
+                      "blockNumber": {
+                        "type": "integer"
+                      },
+                      "txHash": {
+                        "type": "string"
+                      },
+                      "triggers": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "urgent": {
+                        "type": "boolean"
+                      },
+                      "longUsdDelta": {
+                        "type": "number"
+                      },
+                      "marginDelta": {
+                        "type": "number"
+                      },
+                      "perpSizeChange": {
+                        "type": "number"
+                      },
+                      "preDeltaBps": {
+                        "type": "number"
+                      },
+                      "postDeltaBps": {
+                        "type": "number"
+                      },
+                      "preLeverage": {
+                        "type": "number"
+                      },
+                      "postLeverage": {
+                        "type": "number"
+                      },
+                      "estimatedCostUsd": {
+                        "type": "number"
+                      },
+                      "realizedCostUsd": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/alerts": {
+      "get": {
+        "summary": "Alerts (active first)",
+        "tags": [
+          "risk"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "active",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "key": {
+                        "type": "string"
+                      },
+                      "severity": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": [
+                          "null",
+                          "number"
+                        ]
+                      },
+                      "threshold": {
+                        "type": [
+                          "null",
+                          "number"
+                        ]
+                      },
+                      "openedAt": {
+                        "type": "integer"
+                      },
+                      "resolvedAt": {
+                        "type": [
+                          "null",
+                          "integer"
+                        ]
+                      },
+                      "active": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/risk/events": {
+      "get": {
+        "summary": "On-chain risk & emergency events",
+        "tags": [
+          "risk"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "ts": {
+                        "type": "integer"
+                      },
+                      "blockNumber": {
+                        "type": "integer"
+                      },
+                      "txHash": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "previousState": {
+                        "type": [
+                          "null",
+                          "string"
+                        ]
+                      },
+                      "newState": {
+                        "type": [
+                          "null",
+                          "string"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/simulation": {
+      "post": {
+        "summary": "Run a scenario, custom scenario, Monte Carlo or optimizer; result is persisted",
+        "tags": [
+          "simulation"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "description": "scenario | custom | montecarlo | optimizer",
+                    "enum": [
+                      "scenario",
+                      "custom",
+                      "montecarlo",
+                      "optimizer"
+                    ]
+                  },
+                  "scenarioId": {
+                    "type": "string",
+                    "description": "A..J (type=scenario)"
+                  },
+                  "priceMovePct": {
+                    "type": "number",
+                    "description": "type=custom"
+                  },
+                  "moveDays": {
+                    "type": "number"
+                  },
+                  "horizonDays": {
+                    "type": "number"
+                  },
+                  "fundingRatePer8h": {
+                    "type": "number"
+                  },
+                  "usdcUtilization": {
+                    "type": "number"
+                  },
+                  "wethUtilization": {
+                    "type": "number"
+                  },
+                  "oracleOutageDays": {
+                    "type": "number"
+                  },
+                  "liquidityMultiplier": {
+                    "type": "number"
+                  },
+                  "leverageBps": {
+                    "type": "number"
+                  },
+                  "reserveBps": {
+                    "type": "number"
+                  },
+                  "paths": {
+                    "type": "integer",
+                    "description": "type=montecarlo, max 500"
+                  },
+                  "days": {
+                    "type": "integer",
+                    "description": "type=montecarlo, max 730"
+                  },
+                  "seed": {
+                    "type": "integer"
+                  },
+                  "tvl": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "properties": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/simulation/{id}": {
+      "get": {
+        "summary": "Fetch a stored simulation",
+        "tags": [
+          "simulation"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "vault",
+      "description": "ERC-4626 vault state, metrics, positions, PnL, fees"
+    },
+    {
+      "name": "strategy",
+      "description": "Targets, rebalance plan, APY estimation, scenarios"
+    },
+    {
+      "name": "risk",
+      "description": "Risk engine, alerts and on-chain risk events"
+    },
+    {
+      "name": "simulation",
+      "description": "Run and retrieve simulations"
+    },
+    {
+      "name": "system",
+      "description": "Health"
+    }
+  ]
+}

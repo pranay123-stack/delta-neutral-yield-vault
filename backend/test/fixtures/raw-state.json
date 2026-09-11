@@ -1,0 +1,459 @@
+{
+  "blockNumber": {
+    "$bigint": "3396"
+  },
+  "timestamp": {
+    "$bigint": "1796924038"
+  },
+  "vault": {
+    "totalAssets": {
+      "$bigint": "466472510265"
+    },
+    "totalSupply": {
+      "$bigint": "462404550110872803"
+    },
+    "sharePrice": {
+      "$bigint": "1008792000000000000"
+    },
+    "idle": {
+      "$bigint": "0"
+    },
+    "liquidity": {
+      "$bigint": "46654894937"
+    },
+    "depositCap": {
+      "$bigint": "10000000000000"
+    },
+    "operational": true,
+    "name": "Delta Neutral USDC Vault",
+    "symbol": "dnUSDC"
+  },
+  "emergency": {
+    "depositsPaused": false,
+    "strategyPaused": false,
+    "shutdown": false
+  },
+  "snapshot": {
+    "price": {
+      "$bigint": "2882778718900000000000"
+    },
+    "priceHealthy": true,
+    "vaultIdle": {
+      "$bigint": "0"
+    },
+    "strategyFloat": {
+      "$bigint": "0"
+    },
+    "reserveAssets": {
+      "$bigint": "46654894937"
+    },
+    "longQty": {
+      "$bigint": "83255266581674812147"
+    },
+    "longValue": {
+      "$bigint": "240006510737"
+    },
+    "perpSize": {
+      "$bigint": "-83248514329708249600"
+    },
+    "markPrice": {
+      "$bigint": "2882778718900000000000"
+    },
+    "shortNotional": {
+      "$bigint": "239987045489"
+    },
+    "perpMargin": {
+      "$bigint": "179858349213"
+    },
+    "perpUnrealizedPnl": {
+      "$bigint": "-82378679"
+    },
+    "perpPendingFunding": {
+      "$bigint": "35134057"
+    },
+    "perpEquity": {
+      "$bigint": "179811104591"
+    },
+    "liquidationPrice": {
+      "$bigint": "4802581345750924359610"
+    },
+    "maintenanceMargin": {
+      "$bigint": "11999352275"
+    },
+    "fundingRatePer8h": {
+      "$bigint": "2341957964252"
+    },
+    "usdcSupplyRate": {
+      "$bigint": "57745631389735836"
+    },
+    "wethSupplyRate": {
+      "$bigint": "23871084905110407"
+    },
+    "strategyNav": {
+      "$bigint": "466472510265"
+    },
+    "totalNav": {
+      "$bigint": "466472510265"
+    }
+  },
+  "pnl": {
+    "lendingIncomeUsdc": {
+      "$bigint": "961668029"
+    },
+    "lendingIncomeWeth": {
+      "$bigint": "765146773"
+    },
+    "fundingIncome": {
+      "$bigint": "4915615772"
+    },
+    "spotRealizedPnl": {
+      "$bigint": "-1924250551"
+    },
+    "spotUnrealizedPnl": {
+      "$bigint": "-451659773"
+    },
+    "perpRealizedPnl": {
+      "$bigint": "2394181622"
+    },
+    "perpUnrealizedPnl": {
+      "$bigint": "-14787233"
+    },
+    "tradingFees": {
+      "$bigint": "1513217395"
+    },
+    "slippage": {
+      "$bigint": "1088689753"
+    },
+    "badDebtAbsorbed": {
+      "$bigint": "0"
+    },
+    "netPnl": {
+      "$bigint": "4044007491"
+    },
+    "netCapital": {
+      "$bigint": "462428502812"
+    },
+    "strategyNav": {
+      "$bigint": "466472510265"
+    }
+  },
+  "risk": {
+    "report": {
+      "state": 0,
+      "flags": {
+        "$bigint": "0"
+      },
+      "leverageBps": {
+        "$bigint": "13346"
+      },
+      "absDeltaBps": {
+        "$bigint": "0"
+      },
+      "drawdownBps": {
+        "$bigint": "0"
+      },
+      "liquidationDistanceBps": {
+        "$bigint": "6659"
+      },
+      "collateralRatioBps": {
+        "$bigint": "149850"
+      },
+      "fundingAprBps": {
+        "$bigint": "25"
+      },
+      "lendingExposureBps": {
+        "$bigint": "6145"
+      },
+      "perpExposureBps": {
+        "$bigint": "3854"
+      },
+      "oracleHealthy": true
+    },
+    "persistedState": 0,
+    "peakSharePrice": {
+      "$bigint": "1008792000000000000"
+    },
+    "config": {
+      "leverage": {
+        "warn": 25000,
+        "high": 35000,
+        "critical": 50000
+      },
+      "delta": {
+        "warn": 200,
+        "high": 500,
+        "critical": 1000
+      },
+      "drawdown": {
+        "warn": 200,
+        "high": 500,
+        "critical": 1000
+      },
+      "liquidationDistance": {
+        "warn": 3000,
+        "high": 2000,
+        "critical": 1000
+      },
+      "collateralRatio": {
+        "warn": 60000,
+        "high": 40000,
+        "critical": 20000
+      },
+      "protocolExposure": {
+        "warn": 8500,
+        "high": 9500,
+        "critical": 10000
+      },
+      "fundingWarnAprBps": 0,
+      "fundingHighAprBps": -1000,
+      "maxSlippageBps": 100,
+      "maxPositionNotional": {
+        "$bigint": "8000000000000"
+      }
+    }
+  },
+  "rebalance": {
+    "targets": {
+      "targetLeverageBps": 20000,
+      "hedgeRatioBps": 10000,
+      "reserveBps": 1000,
+      "defensiveReserveBps": 7000
+    },
+    "bounds": {
+      "minLeverageBps": 10000,
+      "maxLeverageBps": 30000,
+      "minHedgeRatioBps": 9000,
+      "maxHedgeRatioBps": 11000,
+      "minReserveBps": 500,
+      "maxReserveBps": 9000
+    },
+    "params": {
+      "deltaBandBps": 200,
+      "leverageBandBps": 2500,
+      "allocationBandBps": 500,
+      "minIntervalSec": 3600,
+      "maxCostBps": 50,
+      "carryHorizonSec": 2592000,
+      "volRefBps": 6000,
+      "fundingFloorAprBps": -500,
+      "minTradeUsd": {
+        "$bigint": "1000000000"
+      },
+      "minDeployUsd": {
+        "$bigint": "1000000000"
+      },
+      "gasCostUsd": {
+        "$bigint": "5000000"
+      }
+    },
+    "effectiveLeverageBps": {
+      "$bigint": "14816"
+    },
+    "annualizedVolBps": {
+      "$bigint": "8099"
+    },
+    "lastRebalanceAt": {
+      "$bigint": "1796816035"
+    },
+    "rebalanceCount": {
+      "$bigint": "40"
+    },
+    "preview": [
+      {
+        "sweepIdle": {
+          "$bigint": "0"
+        },
+        "longUsdDelta": {
+          "$bigint": "0"
+        },
+        "marginDelta": {
+          "$bigint": "0"
+        },
+        "hedgeRatioBps": {
+          "$bigint": "10000"
+        },
+        "maxSlippageBps": {
+          "$bigint": "100"
+        },
+        "estimatedCost": {
+          "$bigint": "0"
+        },
+        "triggers": 0,
+        "urgent": false
+      },
+      false
+    ]
+  },
+  "fees": {
+    "mgmtBps": 50,
+    "perfBps": 1000,
+    "withdrawalBps": 0,
+    "hwm": {
+      "$bigint": "1008781003238"
+    },
+    "lastAccrual": {
+      "$bigint": "1796902437"
+    },
+    "totalMgmt": {
+      "$bigint": "429790425"
+    },
+    "totalPerf": {
+      "$bigint": "364901892"
+    },
+    "feeRecipient": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    "feeRecipientShares": {
+      "$bigint": "791587748046603"
+    },
+    "feeRecipientAssets": {
+      "$bigint": "798547906"
+    },
+    "caps": {
+      "maxMgmt": 200,
+      "maxPerf": 2000,
+      "maxWithdrawal": 100
+    }
+  },
+  "oracle": {
+    "price": {
+      "$bigint": "2882778718900000000000"
+    },
+    "status": 0,
+    "lastGoodPrice": {
+      "$bigint": "2882778718900000000000"
+    },
+    "lastGoodAt": {
+      "$bigint": "1796924038"
+    },
+    "shutdown": false
+  },
+  "lending": {
+    "usdcPrincipal": {
+      "$bigint": "46566941403"
+    },
+    "wethPrincipal": {
+      "$bigint": "83152086965250553405"
+    },
+    "usdcInterest": {
+      "$bigint": "961668029"
+    },
+    "wethInterest": {
+      "$bigint": "265419877063524135"
+    },
+    "usdcWithdrawable": {
+      "$bigint": "46654894937"
+    },
+    "usdcUtilization": {
+      "$bigint": "849600136753577723"
+    },
+    "wethUtilization": {
+      "$bigint": "670326837298103605"
+    }
+  },
+  "perp": {
+    "markAccounting": {
+      "markEntryPrice": {
+        "$bigint": "2882601091308302350621"
+      },
+      "cumulativeSlippage": {
+        "$bigint": "463726522"
+      }
+    },
+    "accountStats": {
+      "realizedPnl": {
+        "$bigint": "1998046546"
+      },
+      "fundingPnl": {
+        "$bigint": "4880481715"
+      },
+      "feesPaid": {
+        "$bigint": "756416943"
+      },
+      "liquidationPenalties": {
+        "$bigint": "0"
+      },
+      "badDebt": {
+        "$bigint": "0"
+      }
+    },
+    "position": {
+      "size": {
+        "$bigint": "-83248514329708249600"
+      },
+      "entryPrice": {
+        "$bigint": "2881789167555020402995"
+      },
+      "margin": {
+        "$bigint": "179858349213"
+      },
+      "lastFundingIndex": {
+        "$bigint": "69332513444162119014"
+      }
+    }
+  },
+  "accounting": {
+    "netCapital": {
+      "$bigint": "462428502812"
+    },
+    "spotCostBasis": {
+      "$bigint": "239693023737"
+    },
+    "spotRealizedPnl": {
+      "$bigint": "-1924250551"
+    },
+    "swapFees": {
+      "$bigint": "756800452"
+    },
+    "swapSlippage": {
+      "$bigint": "624963231"
+    }
+  },
+  "deltaReport": {
+    "longExposureUsd": {
+      "$bigint": "240006510737"
+    },
+    "shortExposureUsd": {
+      "$bigint": "239987045489"
+    },
+    "grossExposureUsd": {
+      "$bigint": "479993556226"
+    },
+    "netDeltaQty": {
+      "$bigint": "6752251966562547"
+    },
+    "netDeltaUsd": {
+      "$bigint": "19465248"
+    },
+    "deltaBps": {
+      "$bigint": "0"
+    },
+    "hedgeRatioBps": {
+      "$bigint": "9999"
+    },
+    "targetPerpSize": {
+      "$bigint": "-83255266581674812147"
+    },
+    "requiredPerpSizeChange": {
+      "$bigint": "-6752251966562547"
+    }
+  },
+  "liquidationReport": {
+    "markPrice": {
+      "$bigint": "2882778718900000000000"
+    },
+    "liquidationPrice": {
+      "$bigint": "4802581345750924359610"
+    },
+    "distanceBps": {
+      "$bigint": "6659"
+    },
+    "leverageBps": {
+      "$bigint": "13346"
+    },
+    "collateralRatioBps": {
+      "$bigint": "149850"
+    },
+    "safetyBufferBps": {
+      "$bigint": "4659"
+    }
+  }
+}
