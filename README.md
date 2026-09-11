@@ -201,6 +201,21 @@ opens the hedge; runs ETH +20% and −20%; flips funding negative and back; forc
 ADL; accrues a month of carry; prints the PnL attribution and risk metrics; exits through `redeem` +
 `redeemWithUnwind`. Transcript: [docs/demo-output.md](docs/demo-output.md).
 
+### Sepolia (optional)
+
+The deploy script takes every role from the environment, so the same stack (mocks included, since
+there is no real perp/lending liquidity to integrate on a testnet) deploys to Sepolia unchanged:
+
+```bash
+export DEPLOYER_PRIVATE_KEY=...        # a throwaway testnet key; never commit it
+export ADMIN_ADDRESS=... GUARDIAN_ADDRESS=... KEEPER_ADDRESS=... STRATEGIST_ADDRESS=... FEE_RECIPIENT_ADDRESS=...
+forge script script/Deploy.s.sol --rpc-url $SEPOLIA_RPC_URL --broadcast   # writes deployments/11155111.json
+CHAIN_ID=11155111 RPC_URL=$SEPOLIA_RPC_URL pnpm --filter @dnv/backend start
+```
+
+The market driver and demo use Anvil-only time warps and are local by design; on Sepolia the keeper
+runs in real time.
+
 ### Wallet
 
 The dashboard ships a **demo wallet** (wagmi mock connector over Anvil's unlocked dev accounts, no

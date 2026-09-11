@@ -87,8 +87,8 @@ contract MockLendingProtocolTest is BaseTest {
         lendingPool.setUtilization(u, 1.01e18);
     }
 
-    /// For any utilisation and holding period, a supplier earns supplyRate(U) x t (linear accrual) and
-    /// can always withdraw what it is owed when liquidity allows.
+    /// For any utilisation and holding period, a supplier's balance grows by supplyRate(U) x t
+    /// (linear accrual, the Aave supply-side convention).
     function testFuzz_interest_matchesRateCurve(uint256 util, uint256 dt, uint256 amt) public {
         util = bound(util, 0, 0.9e18);
         dt = bound(dt, 1 hours, 365 days);
