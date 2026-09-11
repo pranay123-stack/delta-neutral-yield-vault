@@ -1,0 +1,33 @@
+{
+  "name": "@dnv/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Next.js dashboard for the delta-neutral vault (local mock markets only - no real funds).",
+  "scripts": {
+    "dev": "next dev -p 3010",
+    "build": "next build",
+    "start": "next start -p 3010",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'frontend: covered by typecheck + build'"
+  },
+  "dependencies": {
+    "@dnv/shared": "workspace:*",
+    "@dnv/simulator": "workspace:*",
+    "@tanstack/react-query": "5.102.8",
+    "next": "16.3.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-is": "19.3.0",
+    "recharts": "3.10.1",
+    "viem": "2.56.3",
+    "wagmi": "3.7.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "22.20.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3"
+  }
+}
