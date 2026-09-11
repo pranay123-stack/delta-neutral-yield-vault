@@ -33,6 +33,7 @@ interface IRebalanceManager {
         int32 fundingFloorAprBps; // below this funding APR the strategy goes defensive
         uint256 minTradeUsd; // ignore adjustments smaller than this (usd6)
         uint256 minDeployUsd; // sweep vault idle once it exceeds this (usd6)
+        uint256 gasCostUsd; // keeper gas per trading rebalance, priced in USD (usd6); chain-dependent
     }
 
     /// @notice Everything the backend needs to reconstruct a rebalance without extra reads.

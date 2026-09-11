@@ -150,7 +150,7 @@ contract RebalanceManager is IRebalanceManager, Auth {
 
         Types.PositionSnapshot memory post = positionManager.snapshot();
         riskManager.validateRebalance(pre, post);
-        riskManager.checkpoint();
+        riskManager.checkpointWith(post);
 
         // only trading resets the cooldown; a cost-free idle sweep must not starve risk rebalances
         if (trades) lastRebalanceAt = uint64(block.timestamp);
@@ -380,6 +380,7 @@ contract RebalanceManager is IRebalanceManager, Auth {
         view
         returns (uint256 cost)
     {
+        cost = _params.gasCostUsd; // keeper gas is a real cost of trading, even if the keeper pays it upfront
         address usdc = strategy.asset();
         address weth = strategy.weth();
         int256 newLongQty = s.longQty.toInt256();

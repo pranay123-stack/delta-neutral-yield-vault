@@ -57,6 +57,7 @@ contract RiskManager is IRiskManager, Auth {
 
     error InvalidConfig();
     error AlreadyInitialized();
+    error OnlyRebalanceManager();
 
     constructor(
         IAccessRegistry registry_,
@@ -89,9 +90,16 @@ contract RiskManager is IRiskManager, Auth {
         return assessSnapshot(positionManager.snapshot());
     }
 
-    function assessSnapshot(Types.PositionSnapshot memory s) public view override returns (RiskReport memory r) {
+    function assessSnapshot(Types.PositionSnapshot memory s) public view override returns (RiskReport memory) {
+        return _assess(s, vault.sharePrice());
+    }
+
+    /// @dev `pps` is passed in so callers that already priced a share don't walk the NAV again.
+    function _assess(Types.PositionSnapshot memory s, uint256 pps) internal view returns (RiskReport memory r) {
         RiskConfig memory c = _config;
         _fillMetrics(s, r);
+        uint256 peak = Math.max(peakSharePrice, pps);
+        r.drawdownBps = peak == 0 ? 0 : Math.mulDiv(peak - pps, BPS, peak);
         uint256 level;
 
         level = _max(level, _higherWorse(r.leverageBps, c.leverage), FLAG_LEVERAGE, r);
@@ -125,14 +133,24 @@ contract RiskManager is IRiskManager, Auth {
     }
 
     /// @inheritdoc IRiskManager
-    function checkpoint() external override returns (Types.RiskState state) {
+    function checkpoint() external override returns (Types.RiskState) {
         if (msg.sender != rebalanceManager) _checkRole(Roles.KEEPER);
+        return _checkpoint(positionManager.snapshot());
+    }
+
+    /// @inheritdoc IRiskManager
+    function checkpointWith(Types.PositionSnapshot calldata post) external override returns (Types.RiskState) {
+        if (msg.sender != rebalanceManager) revert OnlyRebalanceManager();
+        return _checkpoint(post);
+    }
+
+    function _checkpoint(Types.PositionSnapshot memory s) internal returns (Types.RiskState state) {
         uint256 pps = vault.sharePrice();
         if (pps > peakSharePrice) {
             peakSharePrice = pps;
             emit PeakSharePriceUpdated(pps);
         }
-        RiskReport memory r = assessSnapshot(positionManager.snapshot());
+        RiskReport memory r = _assess(s, pps);
         state = r.state;
         if (state != currentState) {
             emit RiskStateChanged(currentState, state, r.flags);
@@ -190,9 +208,6 @@ contract RiskManager is IRiskManager, Auth {
             ? 0
             : (s.perpEquity == 0 ? type(uint256).max : Math.mulDiv(s.shortNotional, BPS, s.perpEquity));
         r.absDeltaBps = DeltaCalculator.absDeltaBps(DeltaCalculator.compute(s, BPS));
-        uint256 pps = vault.sharePrice();
-        uint256 peak = Math.max(peakSharePrice, pps);
-        r.drawdownBps = peak == 0 ? 0 : Math.mulDiv(peak - pps, BPS, peak);
         r.liquidationDistanceBps = PerpMath.distanceBps(s.markPrice, s.liquidationPrice, s.perpSize);
         r.collateralRatioBps =
             s.maintenanceMargin == 0 ? type(uint256).max : Math.mulDiv(s.perpEquity, BPS, s.maintenanceMargin);

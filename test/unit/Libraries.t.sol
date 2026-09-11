@@ -51,10 +51,12 @@ contract PerpMathTest is Test {
     }
 
     /// Property: at the liquidation price, equity equals maintenance margin (within rounding).
-    function testFuzz_liquidationPrice_isEquityEqualsMaintenance(uint256 qty, uint256 marginUsd, uint256 mm, bool isShort)
-        public
-        pure
-    {
+    function testFuzz_liquidationPrice_isEquityEqualsMaintenance(
+        uint256 qty,
+        uint256 marginUsd,
+        uint256 mm,
+        bool isShort
+    ) public pure {
         qty = bound(qty, 1e16, 1000e18);
         mm = bound(mm, 100, 2000);
         uint256 entry = 3000e18;
@@ -74,7 +76,7 @@ contract PerpMathTest is Test {
         price = bound(price, 100e18, 100_000e18);
         uint256 entry = 3000e18;
         if (size == 0) return;
-        (, , int256 r) = PerpMath.applyTrade(size, entry, delta, price);
+        (,, int256 r) = PerpMath.applyTrade(size, entry, delta, price);
         bool reducing = (size > 0) != (delta > 0) && delta != 0;
         if (!reducing) {
             assertEq(r, 0);
@@ -87,7 +89,11 @@ contract PerpMathTest is Test {
 }
 
 contract DeltaCalculatorTest is Test {
-    function _snap(uint256 longQty, int256 perpSize, uint256 nav) internal pure returns (Types.PositionSnapshot memory s) {
+    function _snap(uint256 longQty, int256 perpSize, uint256 nav)
+        internal
+        pure
+        returns (Types.PositionSnapshot memory s)
+    {
         s.price = 3000e18;
         s.longQty = longQty;
         s.perpSize = perpSize;

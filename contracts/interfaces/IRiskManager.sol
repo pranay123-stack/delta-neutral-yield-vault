@@ -53,6 +53,10 @@ interface IRiskManager {
     /// @notice Persist peak share price + risk state; trips the circuit breaker on EMERGENCY.
     function checkpoint() external returns (Types.RiskState);
 
+    /// @notice Same as `checkpoint` but reuses the post-rebalance snapshot the RebalanceManager
+    ///         already computed (saves a full position walk). Only callable by the RebalanceManager.
+    function checkpointWith(Types.PositionSnapshot calldata post) external returns (Types.RiskState);
+
     /// @notice Reverts unless `post` is within hard limits, or strictly de-risks every breached metric vs `pre`.
     function validateRebalance(Types.PositionSnapshot memory pre, Types.PositionSnapshot memory post) external view;
 

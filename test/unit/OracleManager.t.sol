@@ -43,7 +43,9 @@ contract OracleManagerTest is BaseTest {
     function test_stalePrice_detected() public {
         vm.warp(block.timestamp + 1 hours + 1);
         assertEq(uint256(_status()), uint256(Types.OracleStatus.STALE));
-        vm.expectRevert(abi.encodeWithSelector(IOracleManager.OracleUnhealthy.selector, asset, Types.OracleStatus.STALE));
+        vm.expectRevert(
+            abi.encodeWithSelector(IOracleManager.OracleUnhealthy.selector, asset, Types.OracleStatus.STALE)
+        );
         oracle.getPrice(asset);
     }
 

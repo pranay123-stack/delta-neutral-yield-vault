@@ -46,6 +46,10 @@ interface IStrategyManager {
     /// @notice True when NAV depends on the ETH price (any WETH held or perp position open).
     function isPriceDependent() external view returns (bool);
 
+    /// @notice One-pass valuation for the vault: NAV, whether it depends on the ETH price, and
+    ///         whether that price is currently trustworthy. Saves a second oracle validation.
+    function valuation() external view returns (uint256 nav, bool priceDependent, bool priceHealthy);
+
     /// @notice USDC obtainable without trading (float + withdrawable reserve).
     function availableLiquidity() external view returns (uint256);
 

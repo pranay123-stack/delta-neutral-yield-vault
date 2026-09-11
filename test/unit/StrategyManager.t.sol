@@ -48,8 +48,7 @@ contract StrategyManagerTest is BaseTest {
     }
 
     function test_initialize_rejectsAdaptersBoundElsewhere() public {
-        StrategyManager fresh =
-            new StrategyManager(registry, address(vault), usdc, address(weth), oracle, emergency);
+        StrategyManager fresh = new StrategyManager(registry, address(vault), usdc, address(weth), oracle, emergency);
         vm.expectRevert(StrategyManager.AdapterMismatch.selector);
         fresh.initialize(lendingAdapter, perpAdapter, swapAdapter, address(rebalancer), riskManager);
     }
@@ -134,7 +133,7 @@ contract StrategyManagerTest is BaseTest {
 
     function test_emergencyUnwind_bestEffort_whenDexBroken() public {
         _bootstrap(100_000e6);
-        dex.setPoolParams(100, 500, 1_000, 9000); // DEX so bad the swap fails the min-out
+        dex.setPoolParams(100, 500, 1000, 9000); // DEX so bad the swap fails the min-out
         vm.prank(guardian);
         uint256 returned = emergency.emergencyUnwind(2990e18, 3010e18);
         // perp closed + margin + reserve still came back even though the WETH sale failed

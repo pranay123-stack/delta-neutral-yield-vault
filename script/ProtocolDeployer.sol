@@ -276,7 +276,8 @@ abstract contract ProtocolDeployer {
             volRefBps: 6000,
             fundingFloorAprBps: -500,
             minTradeUsd: 1000e6,
-            minDeployUsd: 1000e6
+            minDeployUsd: 1000e6,
+            gasCostUsd: 5e6 // ~1.3M gas on an L2; set per chain (mainnet would be ~$50-100)
         });
     }
 }

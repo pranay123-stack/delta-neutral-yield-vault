@@ -83,8 +83,44 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
     // ERC-4626 accounting
     // ------------------------------------------------------------------
 
+    // ---- per-transaction pricing window (EIP-1153 transient storage) ------
+    // While an entry point is *pricing* (fee accrual, max-checks, previews) the NAV and operational
+    // status are computed once and served from transient storage instead of re-walking oracle +
+    // three venues 3-4 times. The window is closed before any token moves, so no external observer
+    // (e.g. a read-only-reentrancy probe during a transfer) can ever see a cached value.
+    uint256 private transient _navCache; // totalAssets + 1 while open, 0 otherwise
+    uint256 private transient _opCache; // 0 = not cached, 1 = not operational, 2 = operational
+    bool private transient _feesSettled; // fees were crystallised in this window -> nothing pending
+
+    function _openPricing() internal {
+        IStrategyManager s = strategy;
+        uint256 ta = IERC20(asset()).balanceOf(address(this));
+        bool op = true;
+        if (address(s) != address(0)) {
+            (uint256 nav, bool dependent, bool healthy) = s.valuation(); // one oracle + venue pass
+            ta += nav;
+            op = !dependent || healthy;
+        }
+        _opCache = op ? 2 : 1;
+        _navCache = ta + 1;
+        // Never crystallise fees on an untrusted NAV (ops are blocked in that state anyway).
+        if (op && address(strategy) != address(0)) _accrueFeesAt(ta);
+        _feesSettled = op;
+    }
+
+    function _closePricing() internal {
+        _navCache = 0;
+        _opCache = 0;
+        _feesSettled = false;
+    }
+
     /// @notice Idle USDC + strategy NAV. Never reverts (uses the last good price if the oracle is down).
     function totalAssets() public view override(ERC4626, IERC4626) returns (uint256) {
+        uint256 c = _navCache;
+        return c != 0 ? c - 1 : _computeTotalAssets();
+    }
+
+    function _computeTotalAssets() internal view returns (uint256) {
         IStrategyManager s = strategy;
         uint256 idle = IERC20(asset()).balanceOf(address(this));
         return address(s) == address(0) ? idle : idle + s.totalAssets();
@@ -151,39 +187,63 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
     // Entry / exit
     // ------------------------------------------------------------------
 
+    // Each entry point: open pricing window (NAV once, fees crystallised) -> limit check + preview
+    // from the cache -> close window -> move tokens. Semantics are identical to OZ ERC4626.
+
     function deposit(uint256 assets, address receiver)
         public
         override(ERC4626, IERC4626)
         nonReentrant
-        returns (uint256)
+        returns (uint256 shares)
     {
-        _accrueFees();
-        return super.deposit(assets, receiver);
+        _openPricing();
+        uint256 maxAssets = maxDeposit(receiver);
+        if (assets > maxAssets) revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
+        shares = previewDeposit(assets);
+        _closePricing();
+        _deposit(_msgSender(), receiver, assets, shares);
     }
 
-    function mint(uint256 shares, address receiver) public override(ERC4626, IERC4626) nonReentrant returns (uint256) {
-        _accrueFees();
-        return super.mint(shares, receiver);
+    function mint(uint256 shares, address receiver)
+        public
+        override(ERC4626, IERC4626)
+        nonReentrant
+        returns (uint256 assets)
+    {
+        _openPricing();
+        uint256 maxShares = maxMint(receiver);
+        if (shares > maxShares) revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
+        assets = previewMint(shares);
+        _closePricing();
+        _deposit(_msgSender(), receiver, assets, shares);
     }
 
     function withdraw(uint256 assets, address receiver, address owner)
         public
         override(ERC4626, IERC4626)
         nonReentrant
-        returns (uint256)
+        returns (uint256 shares)
     {
-        _accrueFees();
-        return super.withdraw(assets, receiver, owner);
+        _openPricing();
+        uint256 maxAssets = maxWithdraw(owner);
+        if (assets > maxAssets) revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
+        shares = previewWithdraw(assets);
+        _closePricing();
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
 
     function redeem(uint256 shares, address receiver, address owner)
         public
         override(ERC4626, IERC4626)
         nonReentrant
-        returns (uint256)
+        returns (uint256 assets)
     {
-        _accrueFees();
-        return super.redeem(shares, receiver, owner);
+        _openPricing();
+        uint256 maxShares = maxRedeem(owner);
+        if (shares > maxShares) revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
+        assets = previewRedeem(shares);
+        _closePricing();
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
     }
 
     /// @inheritdoc IDeltaNeutralVault
@@ -193,10 +253,11 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
         nonReentrant
         returns (uint256 assets)
     {
-        if (!isOperational()) revert OracleUnhealthy();
         if (shares == 0) revert ZeroShares();
-        _accrueFees();
+        _openPricing();
+        if (!isOperational()) revert OracleUnhealthy();
         uint256 gross = previewRedeem(shares); // net of the withdrawal fee, which stays in the vault
+        _closePricing();
         if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
         _burn(owner, shares); // effects before any external interaction
 
@@ -240,13 +301,12 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
     // ------------------------------------------------------------------
 
     function accrueFees() external override nonReentrant {
-        _accrueFees();
+        _openPricing(); // crystallises fees (if the NAV is trustworthy)
+        _closePricing();
     }
 
-    function _accrueFees() internal {
-        // Never crystallise fees on an untrusted NAV.
-        if (address(strategy) == address(0) || !isOperational()) return;
-        (uint256 a, uint256 s) = _feeBasis(totalAssets());
+    function _accrueFeesAt(uint256 ta) internal {
+        (uint256 a, uint256 s) = _feeBasis(ta);
         (uint256 mgmt, uint256 perf) = feeManager.accrue(a, s);
         uint256 feeShares = mgmt + perf;
         if (feeShares > 0) {
@@ -257,7 +317,7 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
     }
 
     function _pendingFeeShares(uint256 ta) internal view returns (uint256) {
-        if (address(strategy) == address(0)) return 0;
+        if (_feesSettled || address(strategy) == address(0)) return 0;
         (uint256 a, uint256 s) = _feeBasis(ta);
         (uint256 mgmt, uint256 perf) = feeManager.previewAccrual(a, s);
         return mgmt + perf;
@@ -308,6 +368,11 @@ contract DeltaNeutralVault is ERC4626, IDeltaNeutralVault, Auth, ReentrancyGuard
     }
 
     function isOperational() public view override returns (bool) {
+        uint256 c = _opCache;
+        return c != 0 ? c == 2 : _computeOperational();
+    }
+
+    function _computeOperational() internal view returns (bool) {
         IStrategyManager s = strategy;
         if (address(s) == address(0)) return true;
         if (!s.isPriceDependent()) return true;

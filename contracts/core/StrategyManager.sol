@@ -138,10 +138,19 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
     }
 
     /// @inheritdoc IStrategyManager
-    function totalAssets() external view override returns (uint256) {
-        (uint256 price,) = oracle.getPriceOrLastGood(weth);
-        return _usdc.balanceOf(address(this)) + lendingAdapter.balanceOf(address(_usdc))
-            + Math.mulDiv(_wethHeld(), price, Q) + _perpEquity(price);
+    function totalAssets() external view override returns (uint256 nav) {
+        (nav,,) = valuation();
+    }
+
+    /// @inheritdoc IStrategyManager
+    function valuation() public view override returns (uint256 nav, bool priceDependent, bool priceHealthy) {
+        uint256 price;
+        (price, priceHealthy) = oracle.getPriceOrLastGood(weth);
+        uint256 wethQty = _wethHeld();
+        uint256 perpEq = _perpEquity(price);
+        priceDependent = wethQty > 0 || perpEq > 0 || perpAdapter.position().size != 0;
+        nav = _usdc.balanceOf(address(this)) + lendingAdapter.balanceOf(address(_usdc)) + Math.mulDiv(wethQty, price, Q)
+            + perpEq;
     }
 
     function isPriceDependent() external view override returns (bool) {

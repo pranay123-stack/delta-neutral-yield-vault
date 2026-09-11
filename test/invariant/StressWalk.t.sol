@@ -16,7 +16,16 @@ contract StressWalkTest is BaseTest {
     function setUp() public override {
         super.setUp();
         h = new ProtocolHandler(
-            vault, positionManager, rebalancer, riskManager, usdc, feed, fallbackFeed, lendingPool, perp, keeper,
+            vault,
+            positionManager,
+            rebalancer,
+            riskManager,
+            usdc,
+            feed,
+            fallbackFeed,
+            lendingPool,
+            perp,
+            keeper,
             address(perpAdapter)
         );
         feed.transferOwnership(address(h));
