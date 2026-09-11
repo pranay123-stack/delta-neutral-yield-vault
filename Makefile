@@ -64,7 +64,7 @@ up: ## full stack in Docker
 down:
 	docker compose down -v
 
-e2e: ## end-to-end: fresh chain + history + backend integration tests
+e2e: ## end-to-end: fresh chain + history + backend integration tests (E2E_BROWSER=1 adds the browser stage)
 	./scripts/e2e.sh
 
 docs: ## regenerate docs/openapi.json

@@ -17,7 +17,9 @@ for route in / /vault /strategy /positions /risk /performance /pnl /rebalancing 
   timeout 90 "$CHROME" --headless=new --disable-gpu --no-sandbox --user-data-dir="$TMP/profile" \
     --virtual-time-budget=15000 --window-size=1440,2000 --dump-dom "${URL}${route}" >"$dom" 2>/dev/null || true
   errors="$(grep -o -E 'HTTP [0-9]{3} on [^<]{0,80}|API unreachable|Application error|Something went wrong' "$dom" | sort -u | head -3 || true)"
-  skeletons="$(grep -c 'animate-pulse' "$dom" || true)"
+  # SkeletonRows renders <div class="skeleton"> inside an aria-busy wrapper: a page still showing them
+  # after the virtual-time budget means the data never arrived (or the app never hydrated).
+  skeletons="$({ grep -o -E 'class="[^"]*\bskeleton\b|aria-busy' "$dom" || true; } | wc -l)"
   if [[ ! -s "$dom" || -n "$errors" || "$skeletons" -gt 0 ]]; then
     printf 'FAIL %-14s bytes=%s skeletons=%s %s\n' "$route" "$(wc -c <"$dom")" "$skeletons" "${errors//$'\n'/ | }"
     fail=1

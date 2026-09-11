@@ -90,7 +90,8 @@ pnpm --filter @dnv/frontend test:e2e   # Playwright: the depositor flow in a rea
 make check-web                         # both browser checks (needs a running stack)
 ```
 
-`make check-web` does two things against a running stack (Anvil :8555, API :4010, dashboard :3010):
+`make check-web` does two things against a running stack (Anvil :8555, API :4010, dashboard :3010);
+CI runs the same two against its own isolated stack via `E2E_BROWSER=1 ./scripts/e2e.sh`:
 
 1. renders all 10 pages in headless Chrome and fails a page that shows an API error, hits a crash
    boundary, or is still showing loading skeletons once data should have arrived;
@@ -99,3 +100,8 @@ make check-web                         # both browser checks (needs a running st
    simulation with a decoded `ERC4626ExceededMaxWithdraw` → `redeemWithUnwind` of exactly the shares
    it minted, leaving the demo state as it found it. Playwright drives the system Chrome
    (`channel: "chrome"`), so no browser download is needed.
+
+`next build` writes to `NEXT_DIST_DIR` (default `.next`). The e2e browser stage sets `.next-e2e`,
+because a second build into `.next` while a `next start` is serving it leaves that server returning
+500s for its own chunks - a page that then never hydrates, which is exactly what the skeleton check
+in `check-frontend.sh` exists to catch.

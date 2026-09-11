@@ -6,7 +6,7 @@
 | Simulator | Vitest | **24** (incl. on-chain parity) | `pnpm --filter @dnv/simulator test` |
 | Backend | Vitest | **22 unit + 23 integration** | `pnpm --filter @dnv/backend test` (integration: `INTEGRATION=1`) |
 | Frontend | tsc + next build + Playwright | typecheck, production build of 10 routes, every page rendered against a live API (fails on an API error, a crash boundary or a stuck skeleton), and a **browser depositor flow** that sends real transactions through wagmi | `make test-ts`, `make check-web` |
-| System | scripts | 90-day on-chain replay, 16-step demo, fresh-chain e2e | `make history`, `make demo`, `make e2e` |
+| System | scripts | 90-day on-chain replay, 16-step demo, fresh-chain e2e (optionally including the browser stage) | `make history`, `make demo`, `make e2e`, `E2E_BROWSER=1 ./scripts/e2e.sh` |
 
 ## Contract suite
 
@@ -105,8 +105,10 @@ Verified against the chain rather than the UI's own numbers: one run advanced th
 blocks (the approve was already unlimited), moved the wallet's USDC by +25,000.00 net and returned its
 share balance to within 0.00005 dnUSDC of where it started - and the rejected withdrawal mined nothing.
 
-Both need a running stack (`make chain && make history && make api && make web`), so CI runs the
-contract, TypeScript, frontend-build and `e2e.sh` jobs, and these two are a local gate.
+Both need a running stack. Locally that is `make chain && make history && make api && make web`, then
+`make check-web`. **In CI they run too**: `E2E_BROWSER=1 ./scripts/e2e.sh` builds the dashboard against
+its own isolated chain/DB, serves it, and runs both checks - so a regression in the write path fails
+the build, and a failed run uploads the Playwright trace as an artifact.
 
 ## Coverage
 
@@ -143,4 +145,6 @@ FOUNDRY_PROFILE=deep forge test              # heavier fuzzing
 pnpm --filter @dnv/simulator test
 pnpm --filter @dnv/backend test
 ./scripts/e2e.sh                             # fresh chain + DB, replay, integration tests
+E2E_BROWSER=1 ./scripts/e2e.sh               # ... plus the dashboard and the browser depositor flow
+make check-web                               # browser checks against an already-running stack
 ```
