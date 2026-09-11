@@ -69,7 +69,7 @@ On-chain plan: sweep $100,000.00 idle, buy $60,000.00 of WETH, post $30,000.00 m
 | | |
 |---|---|
 | ETH price | $2,880.00 |
-| vault TVL | $100,049.21 |
+| vault TVL | $100,049.22 |
 | share price | 1.000344 |
 | USDC reserve (lending) | $10,005.28 |
 | long leg (WETH lending) | 18.1821 ETH = $52,364.34 |
@@ -84,7 +84,7 @@ On-chain plan: sweep $100,000.00 idle, buy $60,000.00 of WETH, post $30,000.00 m
 
 ## Step 12 - funding turns negative (-0.03%/8h ~ -33% APR), then recovers
 Keeper: rebalanced. Defensive mode = true; basis shrunk to $18,494.55 long, $69,978.36 parked in USDC lending.
-Funding back to +0.02%/8h (~22% APR): keeper held; long leg $56,095.82.
+Funding back to +0.02%/8h (~22% APR): the carry filter approved re-levering; long leg back to $56,092.89.
 
 ## Step 13 - trigger a rebalance: the perp venue auto-deleverages 15% of the hedge
 Delta jumped to 842 bps of NAV (hard limit 500). Plan: execute=true, urgent=true (urgent bypasses the cooldown and cost filters).
@@ -94,44 +94,44 @@ After the urgent rebalance delta is 0 bps; hedge ratio 100.00%.
 
 | | |
 |---|---|
-| lending income (USDC reserve) | $70.30 |
-| lending income (WETH long leg) | $123.98 |
-| funding income | $675.54 |
+| lending income (USDC reserve) | $64.45 |
+| lending income (WETH long leg) | $120.85 |
+| funding income | $641.85 |
 | spot PnL (realised + unrealised) | $3,328.84 |
-| perp PnL (realised + unrealised) | -$3,328.15 |
+| perp PnL (realised + unrealised) | -$3,327.94 |
 | trading fees | -$155.95 |
 | slippage | -$81.32 |
-| strategy net PnL | $633.24 |
-| management fee | -$56.28 |
-| performance fee | -$57.70 |
-| net PnL after fees | $519.26 |
-| reconciliation: NAV - capital - PnL | -$0.000008 |
+| strategy net PnL | $590.79 |
+| management fee | -$54.90 |
+| performance fee | -$53.59 |
+| net PnL after fees | $482.30 |
+| reconciliation: NAV - capital - PnL | -$0.000005 |
 
 
 ## Step 15 - risk metrics
 
 | | |
 |---|---|
-| Perp leverage | 2.04x (NORMAL) |
+| Perp leverage | 1.97x (NORMAL) |
 | Net delta (% NAV) | 0.09% (NORMAL) |
 | Drawdown from peak | 0.00% (NORMAL) |
-| Distance to liquidation | 41.88% (NORMAL) |
-| Equity / maintenance margin | 9.80x (NORMAL) |
+| Distance to liquidation | 43.51% (NORMAL) |
+| Equity / maintenance margin | 10.14x (NORMAL) |
 | Funding APR | 10.95% (NORMAL) |
-| Largest venue exposure | 70.77% (NORMAL) |
+| Largest venue exposure | 69.75% (NORMAL) |
 
-Risk state: **NORMAL**; oracle OK; liquidation price 4373.18 vs mark 3082.15.
+Risk state: **NORMAL**; oracle OK; liquidation price 4423.20 vs mark 3082.15.
 
 ## Step 16 - Alice exits
-Standard redeem took the liquid part (11043.27 shares from idle + reserve); redeemWithUnwind unwound the basis pro-rata for the rest, Alice paying her own exit costs.
+Standard redeem took the liquid part (9991.64 shares from idle + reserve); redeemWithUnwind unwound the basis pro-rata for the rest, Alice paying her own exit costs.
 
 | | |
 |---|---|
 | deposited | $100,000.00 |
-| received | $100,424.11 |
-| net return | 0.424% |
-| holding period (chain days) | 41 |
-| annualised (approx.) | 3.84% |
+| received | $100,387.18 |
+| net return | 0.387% |
+| holding period (chain days) | 40 |
+| annualised (approx.) | 3.59% |
 
-Vault after exit: TVL $114.32 (fee recipient's shares), perp size -0.024871 ETH.
+Vault after exit: TVL $108.80 (fee recipient's shares), perp size -0.023401 ETH.
 Guardian emergency unwind on the remainder: shutdown mode, all USDC back in the vault.

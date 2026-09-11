@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contracts:
+    name: Contracts (build, fmt, lint, tests, gas)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - run: forge --version
+      - run: forge fmt --check
+      - run: forge build --sizes
+      - run: forge lint
+      - run: forge test
+      - name: Gas snapshot within 5% (tolerance absorbs Foundry version differences)
+        run: forge snapshot --match-contract GasBenchmarksTest --isolate --check .gas-snapshot --tolerance 5
+
+  typescript:
+    name: TypeScript (typecheck + unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r typecheck
+      - run: pnpm --filter @dnv/simulator test
+      - run: pnpm --filter @dnv/backend test
+
+  e2e:
+    name: End-to-end (Anvil + Postgres + replay + API integration)
+    runs-on: ubuntu-latest
+    needs: [contracts, typescript]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: ./scripts/e2e.sh
+        env:
+          E2E_DAYS: "14"
