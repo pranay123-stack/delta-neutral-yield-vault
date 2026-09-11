@@ -25,7 +25,7 @@ jobs:
         run: forge snapshot --match-contract GasBenchmarksTest --isolate --check .gas-snapshot --tolerance 5
 
   typescript:
-    name: TypeScript (typecheck + unit tests)
+    name: TypeScript (typecheck + unit tests + frontend build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +40,7 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm --filter @dnv/simulator test
       - run: pnpm --filter @dnv/backend test
+      - run: pnpm --filter @dnv/frontend build
 
   e2e:
     name: End-to-end (Anvil + Postgres + replay + API integration)

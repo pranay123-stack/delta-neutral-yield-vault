@@ -1,5 +1,5 @@
 # Developer entry points. `make help` lists them.
-.PHONY: help install build test test-deep test-ts fmt lint gas snapshot slither chain history api demo up down e2e docs
+.PHONY: help install build test test-deep test-ts fmt lint gas snapshot slither chain history api web check-web demo up down e2e docs
 
 help:
 	@grep -E '^[a-z-]+:.*## ' Makefile | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -18,9 +18,11 @@ test: ## all Solidity tests (unit, fuzz, invariant, scenario, ERC-4626 propertie
 test-deep: ## heavier fuzz/invariant profile
 	FOUNDRY_PROFILE=deep forge test
 
-test-ts: ## simulator + backend unit tests
+test-ts: ## simulator + backend unit tests + frontend typecheck/build
 	pnpm --filter @dnv/simulator test
 	pnpm --filter @dnv/backend test
+	pnpm --filter @dnv/frontend typecheck
+	pnpm --filter @dnv/frontend build
 
 fmt: ## format Solidity
 	forge fmt
@@ -45,6 +47,12 @@ history: ## replay 90 days of synthetic market through the contracts (needs chai
 
 api: ## run API + indexer + keeper
 	pnpm --filter @dnv/backend start
+
+web: ## run the dashboard on :3010 (needs the API)
+	pnpm --filter @dnv/frontend dev
+
+check-web: ## render every dashboard page headlessly and fail on API/render errors
+	./scripts/check-frontend.sh
 
 demo: ## the 16-step scripted demo on an isolated chain
 	./scripts/demo.sh

@@ -22,7 +22,7 @@ USDC ─► ERC-4626 vault ─┬─► 10% USDC reserve ──► lending pool 
 
 | | |
 |---|---|
-| Tests | **219** Foundry (unit, fuzz, 11 invariants, scenarios, a16z ERC-4626 properties) + **24** simulator + **42** backend (20 against a live chain) |
+| Tests | **223** Foundry (unit, fuzz, 11 invariants, scenarios, a16z ERC-4626 properties, resilience) + **24** simulator + **45** backend (23 against a live chain) |
 | PnL reconciliation | `NAV − capital − attributed PnL` = **$0.0000** after a 90-day on-chain replay; checked after every random step in the invariant suite |
 | Delta | worst **2 bps** of NAV across the 90-day replay; ≤ 149 bps after any rebalance in a 3,000-step random walk |
 | Estimated net APY | **6.24%** at base market (gross 8.23%); Monte Carlo median **5.70%**, p5 4.48% (synthetic market) |
@@ -159,6 +159,22 @@ Scenarios A-J (ETH ±20%, −40%, negative funding, APY collapse, 120% vol, stal
 +60% squeeze, crash + negative funding), each run with the keeper on and off; custom scenarios and
 Monte Carlo through `POST /simulation`; an APY estimation engine and a constrained optimizer.
 
+## Dashboard
+
+→ [frontend/README.md](frontend/README.md)
+
+Ten pages over the API, all on live chain state: **Overview** (headline metrics, share-price/TVL chart,
+next keeper plan, active alerts), **Vault** (deposit / mint / withdraw / redeem / `redeemWithUnwind`,
+previews and per-step transaction status), **Strategy** (targets, bands, vol scaling, APY estimate and
+optimizer frontier), **Positions** (all three legs + allocation), **Risk** (every metric against its
+warn / high / critical thresholds, oracle, breakers, alerts, on-chain risk events), **Performance**
+(TVL, share price, trailing APY, PnL split, delta, drawdown, funding, leverage), **PnL** (attribution
+waterfall reconciling to NAV), **Rebalancing** (trigger history and cost per rebalance), **Simulation**
+(scenarios, custom shocks, Monte Carlo, optimizer), **Transactions** (deposits and withdrawals).
+
+`make check-web` renders all ten in headless Chrome against a live API and fails on an API error, a
+crash boundary or a stuck loading skeleton.
+
 ---
 
 ## Quick start
@@ -182,7 +198,7 @@ dashboard.
 
 ```bash
 make install                 # submodules + pnpm workspace
-make test                    # 219 contract tests
+make test                    # 223 contract tests
 docker run -d --name dnv-pg -e POSTGRES_USER=dnv -e POSTGRES_PASSWORD=dnv -e POSTGRES_DB=dnv -p 5476:5432 postgres:16-alpine
 make chain                   # Anvil on :8555 + deploy + export ABIs
 make history                 # 90 days of on-chain history (optional, ~2-3 min)

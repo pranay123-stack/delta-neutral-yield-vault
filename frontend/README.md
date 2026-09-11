@@ -78,5 +78,17 @@ src/lib                       env, typed API client + hooks, formatters, wagmi c
 ```
 
 Response types come from `@dnv/shared` (`shared/src/api.ts`); simulation payloads reuse the
-`@dnv/simulator` result types (type-only imports). `lib/types.ts` declares the few response shapes
-the shared package does not cover yet (`/risk/events`, `/strategy/apy`, `/simulation`).
+`@dnv/simulator` result types (type-only imports). `lib/types.ts` declares the shapes built on the
+simulator's own types, which the shared package does not re-export (`/strategy/apy`, `/simulation`).
+
+## Checks
+
+```bash
+pnpm --filter @dnv/frontend typecheck
+pnpm --filter @dnv/frontend build
+make check-web            # renders all 10 pages in headless Chrome against a live API
+```
+
+`check-web` fails a page that shows an API error, hits a crash boundary, or is still displaying
+loading skeletons once data should have arrived - the cheap end-to-end check that the dashboard and
+the API still agree.
