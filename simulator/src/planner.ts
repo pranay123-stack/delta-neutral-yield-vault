@@ -153,7 +153,10 @@ export function planRebalance(p: Portfolio, m: MarketState, cfg: StrategyConfig,
     if (plan.estimatedCost > (v.nav * cfg.maxCostBps) / 10_000) return sweepOnly(plan);
     if (plan.longUsdDelta > 0 && !carryPaysForCost(m, cfg, lev, h, plan)) {
       plan.longUsdDelta = 0;
-      sizeMargin(p, v.longValue, v.perpEquity, lev, h, cfg, plan);
+      // mirror: only re-size margin when leverage itself is out of band
+      const leverageOff = (plan.triggers & (TRIGGERS.LEVERAGE_HIGH | TRIGGERS.LEVERAGE_LOW | TRIGGERS.LIQUIDATION)) !== 0;
+      if (leverageOff) sizeMargin(p, v.longValue, v.perpEquity, lev, h, cfg, plan);
+      else plan.marginDelta = 0;
       plan.estimatedCost = estimateCost(p, m, plan, cfg);
       const riskParts = (plan.triggers & (TRIGGERS.DELTA | TRIGGERS.LEVERAGE_HIGH | TRIGGERS.LEVERAGE_LOW)) !== 0;
       if (!riskParts && plan.marginDelta === 0) return sweepOnly(plan);

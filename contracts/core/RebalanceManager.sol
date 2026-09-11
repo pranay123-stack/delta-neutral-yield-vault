@@ -269,9 +269,14 @@ contract RebalanceManager is IRebalanceManager, Auth {
                 return (_sweepOnly(plan), plan.triggers & TRIGGER_IDLE != 0);
             }
             if (plan.longUsdDelta > 0 && !_carryPaysForCost(s, p, c, plan)) {
-                // don't add basis exposure that won't earn back its entry cost; keep risk-driven parts
+                // Don't add basis exposure that won't earn back its entry cost; keep risk-driven parts.
+                // Margin is re-sized only if leverage itself is out of band: an allocation drift whose
+                // re-lever was refused must not turn into a pointless margin shuffle (keeper gas for nothing).
                 plan.longUsdDelta = 0;
-                _sizeMargin(s, p, c, plan, s.longValue);
+                bool leverageOff =
+                    plan.triggers & (TRIGGER_LEVERAGE_HIGH | TRIGGER_LEVERAGE_LOW | TRIGGER_LIQUIDATION) != 0;
+                if (leverageOff) _sizeMargin(s, p, c, plan, s.longValue);
+                else plan.marginDelta = 0;
                 plan.estimatedCost = _estimateCost(s, plan);
                 bool riskParts = plan.triggers & (TRIGGER_DELTA | TRIGGER_LEVERAGE_HIGH | TRIGGER_LEVERAGE_LOW) != 0;
                 if (!riskParts && plan.marginDelta == 0) {

@@ -22,3 +22,5 @@ coverage/
 .DS_Store
 *.log
 .env*.local
+.anvil.pid
+.anvil.log

@@ -16,6 +16,7 @@ import {IOracleManager} from "../interfaces/IOracleManager.sol";
 import {IRiskManager} from "../interfaces/IRiskManager.sol";
 import {IStrategyManager} from "../interfaces/IStrategyManager.sol";
 import {IPerpMarket} from "../interfaces/external/IPerpMarket.sol";
+import {GasGuard} from "../libraries/GasGuard.sol";
 import {PerpMath} from "../libraries/PerpMath.sol";
 import {Types} from "../libraries/Types.sol";
 
@@ -311,26 +312,35 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
         if (msg.sender != address(emergency)) revert OnlyEmergency();
         (uint256 refPrice,) = oracle.getPriceOrLastGood(weth);
 
+        // A step is only skipped when its venue genuinely fails; an under-gassed call reverts the whole
+        // unwind (GasGuard) so the guardian retries with more gas instead of silently leaving legs open.
         // 1. close the hedge
         int256 size = perpAdapter.position().size;
+        uint256 g;
         if (size != 0) {
             uint256 bound = size < 0 ? maxBuyPrice : minSellPrice;
+            g = gasleft();
             try perpAdapter.trade(-size, bound) {}
             catch (bytes memory reason) {
+                GasGuard.checkNotStarved(g);
                 emit EmergencyStepFailed(1, reason);
             }
         }
         // 2. withdraw all margin (only possible once flat, or up to the IMR-free amount)
         uint256 margin = perpAdapter.position().margin;
         if (margin > 0 && perpAdapter.position().size == 0) {
+            g = gasleft();
             try perpAdapter.withdrawMargin(margin) {}
             catch (bytes memory reason) {
+                GasGuard.checkNotStarved(g);
                 emit EmergencyStepFailed(2, reason);
             }
         }
         // 3. pull and sell the long leg
+        g = gasleft();
         try lendingAdapter.withdraw(weth, type(uint256).max) {}
         catch (bytes memory reason) {
+            GasGuard.checkNotStarved(g);
             emit EmergencyStepFailed(3, reason);
         }
         uint256 wethBal = IERC20(weth).balanceOf(address(this));
@@ -338,15 +348,19 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
             uint256 heldBefore = _wethHeld();
             uint256 minOut = Math.mulDiv(wethBal, minSellPrice, Q);
             // the adapter pulls inside the call, so a failed swap leaves the WETH here, not stranded
+            g = gasleft();
             try swapAdapter.swap(weth, address(_usdc), wethBal, minOut) returns (uint256 out, uint256 feeWeth) {
                 _recordSale(heldBefore, wethBal, out, feeWeth, refPrice);
             } catch (bytes memory reason) {
+                GasGuard.checkNotStarved(g);
                 emit EmergencyStepFailed(4, reason);
             }
         }
         // 4. pull the USDC reserve (bounded by lending liquidity; the rest can be pulled on a later call)
+        g = gasleft();
         try lendingAdapter.withdraw(address(_usdc), type(uint256).max) {}
         catch (bytes memory reason) {
+            GasGuard.checkNotStarved(g);
             emit EmergencyStepFailed(5, reason);
         }
         returned = _usdc.balanceOf(address(this));
@@ -366,9 +380,11 @@ contract StrategyManager is IStrategyManager, Auth, ReentrancyGuardTransient {
     ///      Falls back to margin + uPnL at `price` if the venue cannot be read (e.g. its feed is down),
     ///      so that `totalAssets()` never reverts.
     function _perpEquity(uint256 price) internal view returns (uint256) {
+        uint256 g = gasleft();
         try perpAdapter.equity() returns (int256 e) {
             return e > 0 ? e.toUint256() : 0;
         } catch {
+            GasGuard.checkNotStarved(g); // a starved read must not be priced with the fallback formula
             IPerpMarket.Position memory p = perpAdapter.position();
             int256 e = p.margin.toInt256() + PerpMath.pnl(p.size, p.entryPrice, price);
             return e > 0 ? e.toUint256() : 0;

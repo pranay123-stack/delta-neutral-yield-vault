@@ -74,6 +74,25 @@ contract RebalanceManagerTest is BaseTest {
         assertTrue(ex, "still sweeps idle");
     }
 
+    /// Regression (found by replaying a synthetic market through the backend): allocation drift whose
+    /// re-lever the carry filter refuses, with leverage still inside its band, used to execute a pointless
+    /// margin-only shuffle every cooldown - keeper gas for nothing. It must now be a no-op.
+    function test_carryBlockedDrift_withLeverageInBand_isNoOp() public {
+        _bootstrap(100_000e6);
+        perp.setFundingRate(0.00001e18); // ~1% APR: re-levering can't beat the USDC reserve
+        _movePrice(500); // leverage ~2.33x: off target but inside the 1.5x-2.5x band
+        _warp(2 days);
+        _deposit(bob, 50_000e6); // NAV up -> long leg now far below target -> ALLOCATION wants to re-lever
+        assertLt(_leverageBps(), 25_000, "leverage inside the band");
+        (Types.RebalancePlan memory p, bool ex) = _preview();
+        // ALLOCATION fired, the carry filter refused the re-lever, and with leverage in band there is no
+        // risk reason left to trade: the plan collapses to the cost-free idle sweep (triggers = IDLE only)
+        assertEq(p.triggers, rebalancer.TRIGGER_IDLE(), "only the idle sweep remains");
+        assertEq(p.longUsdDelta, 0, "carry filter refused the re-lever");
+        assertEq(p.marginDelta, 0, "no margin-only shuffle (was $4,764 before the fix)");
+        assertTrue(ex, "the cost-free idle sweep still runs");
+    }
+
     function test_defensiveMode_shrinksTargetOnNegativeFunding() public {
         _bootstrap(100_000e6);
         perp.setFundingRate(-0.0002e18); // -22% APR < -5% floor

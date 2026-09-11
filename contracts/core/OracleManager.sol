@@ -9,6 +9,7 @@ import {Roles} from "../access/Roles.sol";
 import {IAccessRegistry} from "../interfaces/IAccessRegistry.sol";
 import {IOracleManager} from "../interfaces/IOracleManager.sol";
 import {IAggregatorV3} from "../interfaces/external/IAggregatorV3.sol";
+import {GasGuard} from "../libraries/GasGuard.sol";
 import {Types} from "../libraries/Types.sol";
 
 /// @title OracleManager
@@ -130,15 +131,21 @@ contract OracleManager is IOracleManager, Auth {
         int256 answer;
         uint256 updatedAt;
         uint80 answeredInRound;
+        // GasGuard: a starved feed call must revert, not be reported as FEED_FAILURE (which would steer
+        // callers to the fallback feed or the last-good price) or silently skip the deviation check.
+        uint256 g = gasleft();
         try IAggregatorV3(feed).latestRoundData() returns (uint80 r, int256 a, uint256, uint256 u, uint80 ar) {
             (roundId, answer, updatedAt, answeredInRound) = (r, a, u, ar);
         } catch {
+            GasGuard.checkNotStarved(g);
             return (0, Types.OracleStatus.FEED_FAILURE);
         }
 
+        g = gasleft();
         try IAggregatorV3(feed).decimals() returns (uint8 d) {
             if (d != cfg.decimals) return (0, Types.OracleStatus.DECIMALS_MISMATCH);
         } catch {
+            GasGuard.checkNotStarved(g);
             return (0, Types.OracleStatus.FEED_FAILURE);
         }
 
@@ -147,6 +154,7 @@ contract OracleManager is IOracleManager, Auth {
         if (block.timestamp - updatedAt > cfg.heartbeat) return (0, Types.OracleStatus.STALE);
 
         if (roundId > 1) {
+            g = gasleft();
             try IAggregatorV3(feed).getRoundData(roundId - 1) returns (
                 uint80, int256 prev, uint256, uint256 prevAt, uint80
             ) {
@@ -157,6 +165,7 @@ contract OracleManager is IOracleManager, Auth {
                     if (Math.mulDiv(diff, BPS, p) > cfg.maxDeviationBps) return (0, Types.OracleStatus.DEVIATION);
                 }
             } catch {
+                GasGuard.checkNotStarved(g); // never let a starved call skip the deviation check
                 // Previous round unavailable (e.g. new aggregator phase): skip the deviation check
                 // rather than bricking the feed; staleness and sanity checks above still apply.
             }

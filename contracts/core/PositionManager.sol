@@ -10,6 +10,7 @@ import {IPositionManager} from "../interfaces/IPositionManager.sol";
 import {IStrategyManager} from "../interfaces/IStrategyManager.sol";
 import {IPerpMarket} from "../interfaces/external/IPerpMarket.sol";
 import {DeltaCalculator} from "../libraries/DeltaCalculator.sol";
+import {GasGuard} from "../libraries/GasGuard.sol";
 import {PerpMath} from "../libraries/PerpMath.sol";
 import {Types} from "../libraries/Types.sol";
 
@@ -147,21 +148,29 @@ contract PositionManager is IPositionManager {
         internal
         view
     {
+        // every fallback below is only taken for a *genuine* venue failure, never for a starved call
+        uint256 g = gasleft();
         try perp.markPrice() returns (uint256 m) {
             s.markPrice = m;
         } catch {
+            GasGuard.checkNotStarved(g);
             s.markPrice = s.price;
         }
         s.shortNotional = PerpMath.notional(p.size, s.markPrice);
         s.perpUnrealizedPnl = PerpMath.pnl(p.size, p.entryPrice, s.markPrice);
+        g = gasleft();
         try perp.pendingFunding() returns (int256 f) {
             s.perpPendingFunding = f;
-        } catch {}
+        } catch {
+            GasGuard.checkNotStarved(g);
+        }
         int256 eq = _rawEquity(perp, s);
         s.perpEquity = eq > 0 ? eq.toUint256() : 0;
+        g = gasleft();
         try perp.liquidationPrice() returns (uint256 lp) {
             s.liquidationPrice = lp;
         } catch {
+            GasGuard.checkNotStarved(g);
             s.liquidationPrice = PerpMath.liquidationPrice(
                 p.size, p.entryPrice, p.margin.toInt256() + s.perpPendingFunding, perp.maintenanceMarginBps()
             );
@@ -170,9 +179,11 @@ contract PositionManager is IPositionManager {
     }
 
     function _rawEquity(IPerpAdapter perp, Types.PositionSnapshot memory s) internal view returns (int256) {
+        uint256 g = gasleft();
         try perp.equity() returns (int256 e) {
             return e;
         } catch {
+            GasGuard.checkNotStarved(g);
             return s.perpMargin.toInt256() + s.perpUnrealizedPnl + s.perpPendingFunding;
         }
     }
