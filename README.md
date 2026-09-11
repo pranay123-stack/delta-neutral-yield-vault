@@ -1,5 +1,10 @@
 # Delta-Neutral DeFi Yield Vault
 
+[![CI](https://github.com/pranay123-stack/delta-neutral-yield-vault/actions/workflows/ci.yml/badge.svg)](https://github.com/pranay123-stack/delta-neutral-yield-vault/actions/workflows/ci.yml)
+![Solidity](https://img.shields.io/badge/solidity-0.8.28-363636)
+![Foundry](https://img.shields.io/badge/tests-225%20Foundry%20%2B%2069%20TS-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 An ERC-4626 USDC vault running a **delta-neutral basis strategy**: long ETH supplied to a lending
 market, short the same ETH on a perpetual exchange, and USDC earning lending interest. The book earns
 lending interest + funding while staying (almost) insensitive to the ETH price. Around it: an on-chain
@@ -172,6 +177,18 @@ warn / high / critical thresholds, oracle, breakers, alerts, on-chain risk event
 waterfall reconciling to NAV), **Rebalancing** (trigger history and cost per rebalance), **Simulation**
 (scenarios, custom shocks, Monte Carlo, optimizer), **Transactions** (deposits and withdrawals).
 
+| | |
+|---|---|
+| **Overview** - headline metrics, share price, next keeper plan, alerts | **Positions** - every leg, allocation, liquidation gauge, hedge/delta |
+| [![Overview](docs/images/overview.png)](docs/images/overview.png) | [![Positions](docs/images/positions.png)](docs/images/positions.png) |
+| **Risk** - each metric vs warn / high / critical, oracle, breakers, alerts | **Performance** - TVL, share price, trailing APY, PnL split, delta, funding |
+| [![Risk](docs/images/risk.png)](docs/images/risk.png) | [![Performance](docs/images/performance.png)](docs/images/performance.png) |
+| **Simulation** - the A-J catalogue, keeper on vs off, custom shocks, Monte Carlo | |
+| [![Simulation](docs/images/simulation.png)](docs/images/simulation.png) | |
+
+Every number in those screenshots came from the contracts on a local chain after a 90-day replay -
+nothing is mocked in the UI.
+
 `make check-web` is the browser gate: it renders all ten pages in headless Chrome against a live API
 (failing on an API error, a crash boundary or a stuck skeleton) and then drives a full depositor
 session with Playwright - connect, faucet, approve + deposit, withdraw, a rejected over-limit
@@ -302,3 +319,8 @@ docker/  docker-compose.yml  Makefile  foundry.toml  .env.example
 [economics](docs/economics.md) · [testing](docs/testing.md) · [simulation](docs/simulation.md) ·
 [gas-report](docs/gas-report.md) · [api](docs/api.md) · [openapi.json](docs/openapi.json) ·
 [demo transcript](docs/demo-output.md)
+
+## License
+
+MIT - see [LICENSE](LICENSE). Unaudited demonstration code against mock markets; do not use it to hold
+real funds.
