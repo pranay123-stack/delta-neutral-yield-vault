@@ -10,7 +10,7 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { ANVIL_ACCOUNTS, toFixed, usd } from "@dnv/shared";
+import { ANVIL_ACCOUNTS, toFixed, usd, withGasHeadroom } from "@dnv/shared";
 import { type Hex, maxUint256 } from "viem";
 
 import { anvilIncreaseTime, createChain } from "./chain/clients";
@@ -40,7 +40,7 @@ const pct = (bps: number | null) => (bps === null ? "n/a" : `${(bps / 100).toFix
 async function send(key: string, address: Hex, abi: readonly unknown[], functionName: string, args: readonly unknown[] = []) {
   const w = chain.wallet(key);
   const call = { address, abi: abi as never, functionName: functionName as never, args: args as never, account: w.account };
-  const gas = ((await pc.estimateContractGas(call as never)) * 13n) / 10n;
+  const gas = withGasHeadroom(await pc.estimateContractGas(call as never));
   const hash = await w.writeContract({ ...call, gas, chain: w.chain } as never);
   const r = await pc.waitForTransactionReceipt({ hash });
   if (r.status !== "success") throw new Error(`${functionName} reverted`);

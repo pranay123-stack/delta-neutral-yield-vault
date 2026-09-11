@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Contracts | Foundry | **225** (unit, fuzz, invariant, scenario, ERC-4626 properties, resilience, gas, stress) | `forge test` |
 | Simulator | Vitest | **24** (incl. on-chain parity) | `pnpm --filter @dnv/simulator test` |
-| Backend | Vitest | **22 unit + 23 integration** | `pnpm --filter @dnv/backend test` (integration: `INTEGRATION=1`) |
+| Backend | Vitest | **22 unit + 27 integration** | `pnpm --filter @dnv/backend test` (integration: `INTEGRATION=1`) |
 | Frontend | tsc + next build + Playwright | typecheck, production build of 10 routes, every page rendered against a live API (fails on an API error, a crash boundary or a stuck skeleton), and a **browser depositor flow** that sends real transactions through wagmi | `make test-ts`, `make check-web` |
 | System | scripts | 90-day on-chain replay, 16-step demo, fresh-chain e2e (optionally including the browser stage) | `make history`, `make demo`, `make e2e`, `E2E_BROWSER=1 ./scripts/e2e.sh` |
 
@@ -86,6 +86,11 @@ liquidations.
   keeps trailing APYs defined from its first point, the optimizer's `current` equals the live estimate,
   exact delta agrees with the on-chain integer, alerts carry units and risk events decoded flags, and the
   OpenAPI document covers every endpoint.
+- **Gas headroom vs a real node** (`gasHeadroom.integration.test.ts`, only on the throwaway e2e chain):
+  for deposit, withdraw, redeem and `redeemWithUnwind`, the node's estimate is taken right after a block
+  that wrote the accrual checkpoints, and the transaction is sent with `withGasHeadroom(estimate)` so it
+  lands exactly one second later - it must succeed. This is the race behind bug 10; each probe is undone
+  with `evm_snapshot` / `evm_revert`.
 
 ## Browser checks (`make check-web`)
 

@@ -3,10 +3,31 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import type { Hash } from "viem";
-import { useConfig } from "wagmi";
-import { waitForTransactionReceipt } from "wagmi/actions";
+import { type Config, useConfig } from "wagmi";
+import { getPublicClient, simulateContract, writeContract } from "wagmi/actions";
 
+import { CHAIN_ID } from "./env";
 import { describeError } from "./errors";
+import { withGasHeadroom } from "@dnv/shared";
+
+type SimulateParams = Parameters<typeof simulateContract>[1];
+
+/**
+ * Simulate (so reverts are decoded before anything is sent), then send with gas headroom (`withGasHeadroom`, @dnv/shared).
+ *
+ * Gas is estimated against the latest block. If that block just wrote the vault's accrual checkpoints
+ * (fees, lending interest, perp funding), no time has elapsed, so the estimate skips the accrual work;
+ * the real transaction lands at least a second later and pays for it. Sent with the bare estimate it
+ * can run out of gas and revert on-chain - which is exactly what a slow CI runner produced. The keeper
+ * carries the same headroom for the same reason (docs/security.md, bugs 7 and 10).
+ */
+export async function sendContract(config: Config, params: SimulateParams): Promise<Hash> {
+  const { request } = await simulateContract(config, params);
+  const client = getPublicClient(config, { chainId: CHAIN_ID });
+  if (!client) throw new Error(`No RPC client configured for chain ${CHAIN_ID}.`);
+  const estimate = await client.estimateContractGas(request as never);
+  return writeContract(config, { ...request, gas: withGasHeadroom(estimate) } as never);
+}
 
 export type TxStepStatus = "queued" | "signing" | "confirming" | "done" | "error";
 
@@ -59,8 +80,21 @@ export function useTxRunner() {
           try {
             hash = await step.send();
             patchStep(i, { status: "confirming", hash });
-            const receipt = await waitForTransactionReceipt(config, { hash });
-            if (receipt.status !== "success") throw new Error(`${step.label} reverted on-chain (tx ${hash}).`);
+            // viem's wait, not wagmi's: wagmi replays a reverted tx with eth_call and throws whatever the
+            // replay says, which for an out-of-gas revert is an unhelpful RPC error. Say what happened.
+            const client = getPublicClient(config, { chainId: CHAIN_ID });
+            if (!client) throw new Error(`No RPC client configured for chain ${CHAIN_ID}.`);
+            const receipt = await client.waitForTransactionReceipt({ hash });
+            if (receipt.status !== "success") {
+              const sent = await client.getTransaction({ hash });
+              // EIP-150: a starved inner call reverts while up to 1/64 of the gas is still left, so
+              // "out of gas" shows as gasUsed >= 63/64 of the limit, not only as gasUsed == limit.
+              throw new Error(
+                receipt.gasUsed * 64n >= sent.gas * 63n
+                  ? `${step.label} ran out of gas on-chain (used ${receipt.gasUsed} of ${sent.gas}, tx ${hash}).`
+                  : `${step.label} reverted on-chain (tx ${hash}).`,
+              );
+            }
             patchStep(i, { status: "done", blockNumber: receipt.blockNumber });
             await queryClient.invalidateQueries();
           } catch (err) {

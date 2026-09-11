@@ -1,4 +1,4 @@
-import { ANVIL_ACCOUNTS, toFixed } from "@dnv/shared";
+import { ANVIL_ACCOUNTS, toFixed, withGasHeadroom } from "@dnv/shared";
 import { Rng, generateMarketPath } from "@dnv/simulator";
 import type { Logger } from "pino";
 import { type Hex, maxUint256 } from "viem";
@@ -57,7 +57,7 @@ export async function runMarketDriver(
     const w = key === cfg.SIMULATOR_PRIVATE_KEY ? sim : chain.wallet(key);
     const call = { address, abi: abi as never, functionName: functionName as never, args: args as never, account: w.account };
     // 30% gas buffer: accrual code paths make gas depend on the next block's timestamp
-    const gas = ((await pc.estimateContractGas(call as never)) * 13n) / 10n;
+    const gas = withGasHeadroom(await pc.estimateContractGas(call as never));
     // Anvil automines: the tx is final when the hash comes back
     return w.writeContract({ ...call, gas, chain: w.chain } as never);
   };

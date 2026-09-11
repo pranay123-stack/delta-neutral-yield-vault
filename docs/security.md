@@ -48,7 +48,32 @@ useful part of this review.
 | 8 | backend read the cached head block | state read right after a tx described the *previous* block | the demo printing delta 0 after an ADL | `getBlockNumber({ cacheTime: 0 })` |
 | 9 | `totalAssets` reverted when a lending read did | ERC-4626 requires it never to revert: `maxWithdraw` panicked (0x11) mid-replay and killed a 90-day run. The perp leg had a fallback, the lending leg did not | a 90-day replay dying on `panic: arithmetic underflow or overflow`; reproduced in Foundry by serving a call 2 s before the venue's last checkpoint | try/catch + `GasGuard` around every lending read (valuation, liquidity, snapshot, PnL), falling back to the adapter's own checkpoint; `block.timestamp - lastUpdate` made saturating in `FeeManager` and both venue mocks |
 
-Bugs 5-9 only showed up by *running* the system end to end.
+| 10 | the dashboard sent every transaction with the bare gas estimate | on the GitHub runner a withdraw **ran out of gas on-chain** (gas limit 232,262 = gas used, status 0) and the UI showed wagmi's opaque "Transaction creation failed." - measured on Anvil, *every* share operation fails this way when it lands a second after a checkpoint block | the first CI run of the browser test on GitHub, diagnosed from the uploaded Playwright trace, then reproduced on Anvil | one `withGasHeadroom` (30%) in `@dnv/shared` for the dashboard, keeper, market driver and demo; a real-node integration test pins it; reverted receipts now say "ran out of gas" |
+
+Bugs 5-10 only showed up by *running* the system end to end.
+
+Bug 10 is bug 7 again, one layer up. A gas estimate runs against the latest block; when that block has
+just written the accrual checkpoints (fees, lending interest, perp funding), no time has elapsed and the
+estimate skips the accrual work, but the transaction lands at least a second later and pays for it.
+EIP-150's 63/64 rule then turns a few percent of shortfall into a starved venue call. The keeper had
+carried a 30% buffer since bug 7; the dashboard's demo wallet sent `eth_sendTransaction` with no gas at
+all, so the node used its own bare estimate. It passed on a fast laptop and failed on a slower CI
+runner, where the one-second gap opens more often. Measured on a real node (estimate with no time
+elapsed vs. the smallest limit that works one second later):
+
+| Operation | Estimate | Needs 1 s later | Headroom needed | Bare estimate |
+|---|---:|---:|---:|---|
+| `deposit` | 236,211 | 269,196 | 14.0% | fails |
+| `withdraw` | 372,964 | 404,104 | 8.3% | fails |
+| `redeem` | 373,104 | 404,256 | 8.3% | fails |
+| `redeemWithUnwind` | 355,756 | 386,328 | 8.6% | fails |
+
+30% leaves about 2x margin over the worst case. The constant now lives in one place, and
+`backend/test/gasHeadroom.integration.test.ts` re-measures it against a real node in CI. A Foundry test
+was tried first and dropped: an internal `call{gas: g}` from a test contract does not reproduce what
+`eth_estimateGas` returns for these paths (it reported withdraw needing more than 30%). Separately,
+wagmi's receipt wait replays a reverted transaction and throws whatever the replay says; the dashboard
+now uses viem's wait and reports "ran out of gas" when gas used is at least 63/64 of the limit.
 
 Bug 9 is worth expanding, because the trigger is subtle. The local chain warps time
 (`evm_increaseTime`) and mints blocks faster than the wall clock, so a call could be served at a

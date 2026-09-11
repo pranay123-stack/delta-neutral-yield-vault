@@ -4,6 +4,7 @@ import type { Hex } from "viem";
 import type { Chain_ } from "./chain/clients";
 import { recordKeeperRun } from "./db/repo";
 import type { Db } from "./db/pool";
+import { withGasHeadroom } from "@dnv/shared";
 
 export interface KeeperTickResult {
   actions: string[];
@@ -83,7 +84,7 @@ export class Keeper {
     // Gas depends on block.timestamp (interest/funding accrual short-circuit when dt == 0, as they do
     // inside an estimate but not in the next mined block), so send with a 30% buffer over the estimate.
     const estimate = await pc.estimateContractGas({ ...(req as object), account: this.wallet.account } as never);
-    const hash = await this.wallet.writeContract({ ...(request as object), gas: (estimate * 13n) / 10n } as never);
+    const hash = await this.wallet.writeContract({ ...(request as object), gas: withGasHeadroom(estimate) } as never);
     const receipt = await pc.waitForTransactionReceipt({ hash });
     if (receipt.status !== "success") throw new Error(`${req.functionName} reverted`);
     return receipt;

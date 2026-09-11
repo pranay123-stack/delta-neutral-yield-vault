@@ -49,7 +49,8 @@ echo "== replay ${DAYS} days of synthetic market through the contracts"
 pnpm --silent --filter @dnv/backend exec tsx src/index.ts history "$DAYS" 6
 
 echo "== backend unit + integration tests"
-INTEGRATION=1 pnpm --silent --filter @dnv/backend exec vitest run
+# E2E_DISPOSABLE_CHAIN: this chain is thrown away, so suites that snapshot/revert it may run
+INTEGRATION=1 E2E_DISPOSABLE_CHAIN=1 pnpm --silent --filter @dnv/backend exec vitest run
 
 # Opt-in browser stage (E2E_BROWSER=1): the same stack, plus the API and the dashboard, checked in a
 # real Chrome - every page rendered, then the depositor flow sending real transactions through wagmi.

@@ -4,7 +4,7 @@ import { SHARE_DECIMALS, USD_DECIMALS, type VaultView as VaultInfo, deltaNeutral
 import { useState } from "react";
 import { type Address, formatUnits, isAddress, zeroAddress } from "viem";
 import { useBalance, useConfig, useReadContract, useReadContracts, useSwitchChain } from "wagmi";
-import { readContract, simulateContract, writeContract } from "wagmi/actions";
+import { readContract } from "wagmi/actions";
 
 import { TransactionsTable } from "@/app/transactions/TransactionsView";
 import { WalletOptions, useWalletActions } from "@/components/layout/WalletMenu";
@@ -19,7 +19,7 @@ import { accountLabel } from "@/lib/demo";
 import { CHAIN_ID, POLL_LIVE } from "@/lib/env";
 import { fmtNum, fmtPct, fmtUsd, shortHex } from "@/lib/format";
 import { useTransactions, useVault } from "@/lib/queries";
-import { type TxStepSpec, useTxRunner } from "@/lib/tx";
+import { type TxStepSpec, sendContract, useTxRunner } from "@/lib/tx";
 
 type Tab = "deposit" | "withdraw" | "redeem" | "unwind";
 
@@ -166,8 +166,7 @@ function VaultActions({ info, vault, usdc }: { info: VaultInfo; vault: Address; 
   const approveStep = (amount: bigint): TxStepSpec => ({
     label: `Approve ${usdcStr(amount)}`,
     send: async () => {
-      const { request } = await simulateContract(config, { chainId: CHAIN_ID, address: usdc, abi: mockERC20Abi, functionName: "approve", args: [vault, amount] });
-      return writeContract(config, request);
+      return sendContract(config, { chainId: CHAIN_ID, address: usdc, abi: mockERC20Abi, functionName: "approve", args: [vault, amount] });
     },
   });
 
@@ -177,8 +176,7 @@ function VaultActions({ info, vault, usdc }: { info: VaultInfo; vault: Address; 
       {
         label: `Mint ${usdcStr(faucetAmt, 0)}`,
         send: async () => {
-          const { request } = await simulateContract(config, { chainId: CHAIN_ID, address: usdc, abi: mockERC20Abi, functionName: "faucet", args: [faucetAmt] });
-          return writeContract(config, request);
+          return sendContract(config, { chainId: CHAIN_ID, address: usdc, abi: mockERC20Abi, functionName: "faucet", args: [faucetAmt] });
         },
       },
     ]);
@@ -192,8 +190,7 @@ function VaultActions({ info, vault, usdc }: { info: VaultInfo; vault: Address; 
     steps.push({
       label: `Deposit ${usdcStr(amount)}`,
       send: async () => {
-        const { request } = await simulateContract(config, { chainId: CHAIN_ID, address: vault, abi: deltaNeutralVaultAbi, functionName: "deposit", args: [amount, user] });
-        return writeContract(config, request);
+        return sendContract(config, { chainId: CHAIN_ID, address: vault, abi: deltaNeutralVaultAbi, functionName: "deposit", args: [amount, user] });
       },
     });
     if (await tx.run(steps.length > 1 ? "Approve + deposit" : "Deposit", steps)) setDepIn("");
@@ -206,8 +203,7 @@ function VaultActions({ info, vault, usdc }: { info: VaultInfo; vault: Address; 
       {
         label: `Withdraw ${usdcStr(amount)}`,
         send: async () => {
-          const { request } = await simulateContract(config, { chainId: CHAIN_ID, address: vault, abi: deltaNeutralVaultAbi, functionName: "withdraw", args: [amount, user, user] });
-          return writeContract(config, request);
+          return sendContract(config, { chainId: CHAIN_ID, address: vault, abi: deltaNeutralVaultAbi, functionName: "withdraw", args: [amount, user, user] });
         },
       },
     ]);
@@ -221,8 +217,7 @@ function VaultActions({ info, vault, usdc }: { info: VaultInfo; vault: Address; 
       {
         label: `Redeem ${sharesStr(amount)}`,
         send: async () => {
-          const { request } = await simulateContract(config, { chainId: CHAIN_ID, address: vault, abi: deltaNeutralVaultAbi, functionName: "redeem", args: [amount, user, user] });
-          return writeContract(config, request);
+          return sendContract(config, { chainId: CHAIN_ID, address: vault, abi: deltaNeutralVaultAbi, functionName: "redeem", args: [amount, user, user] });
         },
       },
     ]);
@@ -240,14 +235,13 @@ function VaultActions({ info, vault, usdc }: { info: VaultInfo; vault: Address; 
           // re-quote at submit time so minAssetsOut is never based on a stale preview
           const gross = await readContract(config, { chainId: CHAIN_ID, address: vault, abi: deltaNeutralVaultAbi, functionName: "previewRedeem", args: [amount] });
           const minAssetsOut = (gross * bps) / 10_000n;
-          const { request } = await simulateContract(config, {
+          return sendContract(config, {
             chainId: CHAIN_ID,
             address: vault,
             abi: deltaNeutralVaultAbi,
             functionName: "redeemWithUnwind",
             args: [amount, user, user, minAssetsOut],
           });
-          return writeContract(config, request);
         },
       },
     ]);
