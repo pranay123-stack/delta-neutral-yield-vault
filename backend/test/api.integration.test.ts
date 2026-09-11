@@ -83,6 +83,30 @@ describe.skipIf(!run)("API integration", () => {
   it("rejects invalid simulation input", async () => {
     const r = await app.inject({ method: "POST", url: "/simulation", payload: { type: "bogus" } });
     expect(r.statusCode).toBe(400);
+    const partial = await app.inject({ method: "POST", url: "/simulation", payload: { type: "custom", priceMovePct: -30 } });
+    expect(partial.statusCode).toBe(400);
+    expect(partial.json().message).toContain("moveDays");
+  });
+
+  it("windowed performance keeps trailing APYs defined from the first point", async () => {
+    const full = (await app.inject({ url: "/vault/performance" })).json();
+    const spanDays = (full.summary.toTs - full.summary.fromTs) / 86_400;
+    if (spanDays < 10) return; // the replay must be longer than window + 7d lookback
+    const win = (await app.inject({ url: "/vault/performance?days=3" })).json();
+    expect(win.points[0].ts).toBeGreaterThanOrEqual(win.summary.toTs - 3 * 86_400);
+    expect(win.points[0].apy7d).not.toBeNull();
+  });
+
+  it("optimizer reports the live configuration as `current`", async () => {
+    const a = (await app.inject({ url: "/strategy/apy" })).json();
+    expect(a.optimizer.current.netApy).toBeCloseTo(a.estimate.netApy, 10);
+  });
+
+  it("typed extras: exact delta, alert units, decoded risk flags", async () => {
+    const d = (await app.inject({ url: "/vault/delta" })).json();
+    expect(Math.abs(d.deltaBpsExact - d.deltaBps)).toBeLessThan(1); // on-chain value truncates toward zero
+    for (const a of (await app.inject({ url: "/alerts" })).json()) expect(a).toHaveProperty("unit");
+    for (const e of (await app.inject({ url: "/risk/events" })).json()) expect(Array.isArray(e.flagNames)).toBe(true);
   });
 
   it("OpenAPI document covers every spec endpoint", async () => {

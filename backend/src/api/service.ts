@@ -23,6 +23,8 @@ import { deltaView, feesView, leverageOf, pnlView, positionsView, riskView, stra
 
 const DAY = 24 * 3600;
 
+const badRequest = (message: string) => Object.assign(new Error(message), { statusCode: 400 });
+
 /** Map live on-chain parameters onto the simulator's config so estimates reflect what is deployed. */
 export function strategyConfigFromChain(s: RawState): StrategyConfig {
   const t = s.rebalance.targets;
@@ -79,14 +81,18 @@ export class ApiService {
 
   apyInputs(s: RawState) {
     const snap = s.snapshot;
+    const t = s.rebalance.targets;
+    // mirror RebalanceManager._context: below the funding floor the reserve target switches to defensive
+    const fundingAprBps = (Number(snap.fundingRatePer8h) / 1e18) * 1095 * 10_000;
+    const reserveBps = fundingAprBps < s.rebalance.params.fundingFloorAprBps ? Math.max(t.reserveBps, t.defensiveReserveBps) : t.reserveBps;
     return {
       usdcSupplyApr: Number(snap.usdcSupplyRate) / 1e18,
       wethSupplyApr: Number(snap.wethSupplyRate) / 1e18,
       fundingRatePer8h: Number(snap.fundingRatePer8h) / 1e18,
       volAnnual: Number(s.rebalance.annualizedVolBps) / 10_000,
       targetLeverage: Number(s.rebalance.effectiveLeverageBps) / 10_000,
-      reserveRatio: s.rebalance.targets.reserveBps / 10_000,
-      hedgeRatio: s.rebalance.targets.hedgeRatioBps / 10_000,
+      reserveRatio: reserveBps / 10_000,
+      hedgeRatio: t.hedgeRatioBps / 10_000,
       tvl: Math.max(usd(s.vault.totalAssets), 10_000),
       cfg: strategyConfigFromChain(s),
     };
@@ -135,6 +141,7 @@ export class ApiService {
       fundingRatePer8h: fundingRate,
       fundingApr: fundingRate * 1095,
       netDeltaBps: Number(s.deltaReport.deltaBps),
+      netDeltaBpsExact: nav > 0 ? (usd(s.deltaReport.netDeltaUsd) / nav) * 10_000 : 0,
       netDeltaUsd: usd(s.deltaReport.netDeltaUsd),
       hedgeRatio: s.deltaReport.hedgeRatioBps > 10n ** 9n ? 0 : Number(s.deltaReport.hedgeRatioBps) / 10_000,
       leverage: Number.isFinite(lev) ? lev : 999,
@@ -146,11 +153,26 @@ export class ApiService {
     };
   }
 
+  /**
+   * Chain time of "now". Falls back to the newest indexed snapshot when the chain is unreachable, so
+   * the history endpoints (which only need the database) keep answering during an RPC outage.
+   */
+  async nowTs(): Promise<number> {
+    try {
+      return Number((await this.state()).timestamp);
+    } catch (err) {
+      const last = await repo.lastSnapshotTs(this.db);
+      if (last === null) throw err;
+      return last;
+    }
+  }
+
   async performance(days?: number): Promise<PerformanceView> {
-    const s = await this.state();
-    const now = Number(s.timestamp);
+    const now = await this.nowTs();
     const from = days ? now - days * DAY : 0;
-    const points = withTrailingApy(await repo.performanceSeries(this.db, from));
+    // read an extra 30 days before the window so trailing 7d/30d APYs are defined from its first point
+    const series = await repo.performanceSeries(this.db, days ? from - 30 * DAY : 0, days ? 1500 + Math.ceil((1500 * 30) / days) : 1500);
+    const points = withTrailingApy(series).filter((p) => p.ts >= from);
     const rebalances = points.length ? await repo.rebalanceCountBetween(this.db, points[0]!.ts, now) : 0;
     return { points, summary: summarize(points, rebalances) };
   }
@@ -207,8 +229,8 @@ export class ApiService {
     const s = await this.state();
     const inputs = this.apyInputs(s);
     const estimate = estimateApy(inputs);
-    const opt = optimize({ ...inputs, targetLeverage: undefined, reserveRatio: undefined } as never);
-    return { estimate, optimizer: { best: opt.best, recommendation: opt.recommendation, frontier: opt.frontier, constraints: opt.constraints } };
+    const opt = optimize(inputs);
+    return { estimate, optimizer: { best: opt.best, current: opt.current, recommendation: opt.recommendation, frontier: opt.frontier, constraints: opt.constraints } };
   }
 
   async scenarios() {
@@ -226,14 +248,16 @@ export class ApiService {
     let result: unknown;
     if (body.type === "scenario") {
       const def = SCENARIOS.find((d) => d.id === body.scenarioId);
-      if (!def) throw Object.assign(new Error(`unknown scenario ${body.scenarioId}`), { statusCode: 400 });
+      if (!def) throw badRequest(`unknown scenario ${body.scenarioId}`);
       result = runScenario(def, { tvl: body.tvl ?? 100_000, cfg });
     } else if (body.type === "custom") {
-      result = runCustomScenario(body);
+      const missing = (["priceMovePct", "moveDays", "horizonDays"] as const).filter((k) => typeof body[k] !== "number");
+      if (missing.length) throw badRequest(`custom simulation requires ${missing.join(", ")}`);
+      result = runCustomScenario(body, cfg);
     } else if (body.type === "montecarlo") {
       result = monteCarlo({ paths: Math.min(body.paths ?? 100, 500), days: Math.min(body.days ?? 365, 730), seed: body.seed ?? 42, cfg, tvl: body.tvl ?? 100_000 });
     } else {
-      result = optimize(this.apyInputs(s) as never);
+      result = optimize(this.apyInputs(s));
     }
     const id = await repo.saveSimulation(this.db, body.type, body, result);
     return { id, type: body.type, result };

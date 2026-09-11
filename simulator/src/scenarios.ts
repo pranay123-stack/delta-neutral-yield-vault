@@ -242,11 +242,13 @@ export interface CustomScenarioInput {
   reserveBps?: number;
 }
 
-export function runCustomScenario(input: CustomScenarioInput): ScenarioResult {
+/** `base` is the strategy the scenario runs (the backend passes the live on-chain configuration);
+ *  `leverageBps` / `reserveBps` in the input override it. */
+export function runCustomScenario(input: CustomScenarioInput, base: StrategyConfig = DEFAULT_STRATEGY): ScenarioResult {
   const cfg: StrategyConfig = {
-    ...DEFAULT_STRATEGY,
-    targetLeverageBps: input.leverageBps ?? DEFAULT_STRATEGY.targetLeverageBps,
-    reserveBps: input.reserveBps ?? DEFAULT_STRATEGY.reserveBps,
+    ...base,
+    targetLeverageBps: input.leverageBps ?? base.targetLeverageBps,
+    reserveBps: input.reserveBps ?? base.reserveBps,
   };
   const liq = input.liquidityMultiplier ?? 1;
   const venues = {

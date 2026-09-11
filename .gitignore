@@ -26,3 +26,5 @@ coverage/
 .anvil.log
 deployments/demo-31337.json
 deployments/e2e-31337.json
+.api.log
+.frontend.log

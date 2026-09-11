@@ -1,8 +1,11 @@
 import {
+  ALERT_UNITS,
   type AlertView,
   type PerformancePoint,
   REBALANCE_TRIGGERS,
+  RISK_FLAGS,
   type RebalanceRecordView,
+  type RiskEventView,
   type RiskStateName,
   type TransactionView,
   decodeBits,
@@ -256,13 +259,14 @@ export async function listAlerts(db: Db, opts: { activeOnly?: boolean; limit?: n
     message: row.message,
     value: row.value,
     threshold: row.threshold,
+    unit: ALERT_UNITS[row.key] ?? null,
     openedAt: row.opened_at,
     resolvedAt: row.resolved_at,
     active: row.active,
   }));
 }
 
-export async function riskEvents(db: Db, limit = 200) {
+export async function riskEvents(db: Db, limit = 200): Promise<RiskEventView[]> {
   const r = await db.query("SELECT * FROM risk_events ORDER BY ts DESC, id DESC LIMIT $1", [limit]);
   return r.rows.map((row) => ({
     id: row.id,
@@ -273,6 +277,7 @@ export async function riskEvents(db: Db, limit = 200) {
     previousState: row.previous_state,
     newState: row.new_state,
     flags: row.flags,
+    flagNames: row.flags === null ? [] : decodeBits(row.flags, RISK_FLAGS),
     details: row.details,
   }));
 }
@@ -289,7 +294,7 @@ export async function saveSimulation(db: Db, kind: string, input: unknown, resul
 export async function getSimulation(db: Db, id: number) {
   const r = await db.query("SELECT * FROM simulation_results WHERE id = $1", [id]);
   const row = r.rows[0];
-  return row ? { id: row.id, createdAt: row.created_at, kind: row.kind, input: row.input, result: row.result } : null;
+  return row ? { id: row.id, createdAt: new Date(row.created_at).toISOString(), kind: row.kind, input: row.input, result: row.result } : null;
 }
 
 export async function recordKeeperRun(

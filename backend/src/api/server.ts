@@ -95,7 +95,7 @@ export async function buildServer(svc: ApiService, opts: { logger?: boolean; cor
   );
   app.get<{ Params: { id: number } }>(
     "/simulation/:id",
-    { schema: { ...tag("simulation"), summary: "Fetch a stored simulation", params: { type: "object", properties: { id: { type: "integer" } }, required: ["id"] } } },
+    { schema: { ...tag("simulation"), summary: "Fetch a stored simulation", params: { type: "object", properties: { id: { type: "integer" } }, required: ["id"] }, ...ok(schemas.storedSimulation) } },
     async (req, reply) => {
       const sim = await repo.getSimulation(svc.db, req.params.id);
       if (!sim) return reply.status(404).send({ error: "not_found", message: `simulation ${req.params.id} not found` });

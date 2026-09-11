@@ -186,9 +186,13 @@ export interface OptimizeResult {
   recommendation: string;
 }
 
-/** Grid search over target leverage and reserve share, maximising net APY within risk constraints. */
+/**
+ * Grid search over target leverage and reserve share, maximising net APY within risk constraints.
+ * `current` is the estimate at the leverage/reserve passed in (the live configuration when called with
+ * on-chain inputs); the grid overrides both.
+ */
 export function optimize(
-  base: Omit<ApyInputs, "targetLeverage" | "reserveRatio">,
+  base: ApyInputs,
   constraints: OptimizeConstraints = { minLiquidationMovePct: 0.3, maxRebalancesPerYear: 150, maxLiquidationProb7d: 1e-4 },
 ): OptimizeResult {
   const cfg = base.cfg ?? DEFAULT_STRATEGY;

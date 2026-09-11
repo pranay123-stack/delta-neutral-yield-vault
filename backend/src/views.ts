@@ -135,6 +135,7 @@ export function deltaView(s: RawState, chainId: number): DeltaView {
     netDeltaQty: fromFixed(r.netDeltaQty, 18),
     netDeltaUsd: usd(r.netDeltaUsd),
     deltaBps,
+    deltaBpsExact: s.snapshot.totalNav > 0n ? (usd(r.netDeltaUsd) / usd(s.snapshot.totalNav)) * 10_000 : 0,
     hedgeRatioBps: r.hedgeRatioBps === MAX_UINT256 ? 0 : Number(r.hedgeRatioBps),
     targetPerpSize: fromFixed(r.targetPerpSize, 18),
     requiredPerpSizeChange: changeQty,

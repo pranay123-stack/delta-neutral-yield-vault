@@ -92,7 +92,8 @@ export interface VaultMetrics extends ChainMeta {
   wethSupplyApr: number;
   fundingRatePer8h: number; // fraction
   fundingApr: number; // fraction
-  netDeltaBps: number;
+  netDeltaBps: number; // integer bps of total NAV, as the contracts compute it (truncated toward zero)
+  netDeltaBpsExact: number; // same ratio without truncation: sub-bps drift shows up here
   netDeltaUsd: number;
   hedgeRatio: number; // short / long
   leverage: number; // perp notional / perp equity
@@ -150,7 +151,8 @@ export interface DeltaView extends ChainMeta {
   grossExposureUsd: number;
   netDeltaQty: number;
   netDeltaUsd: number;
-  deltaBps: number;
+  deltaBps: number; // integer bps of total NAV (on-chain value, truncated toward zero)
+  deltaBpsExact: number; // netDeltaUsd / totalNav x 1e4 without truncation
   hedgeRatioBps: number;
   targetPerpSize: number;
   requiredPerpSizeChange: number;
@@ -164,6 +166,7 @@ export interface RiskMetric {
   key: RiskFlag;
   label: string;
   value: number | null;
+  /** "bps" = basis points; "x" = multiple; "apr" = annualised rate expressed in bps (-500 = -5% APR). */
   unit: "bps" | "x" | "apr";
   level: RiskStateName;
   thresholds: { warn: number; high: number; critical: number | null };
@@ -347,6 +350,18 @@ export interface RebalanceRecordView {
 
 export type AlertSeverity = "INFO" | "WARNING" | "CRITICAL";
 
+/** Unit of an alert's value/threshold: follows the risk metric it watches (see ALERT_UNITS). */
+export type AlertUnit = "bps" | "apr" | "usd" | null;
+
+/** Alert key -> unit of its `value`/`threshold`. Keys not listed carry no numeric value. */
+export const ALERT_UNITS: Record<string, AlertUnit> = {
+  "liquidation.distance": "bps",
+  "delta.band": "bps",
+  "funding.negative": "apr",
+  drawdown: "bps",
+  "liquidity.reserve": "usd",
+};
+
 export interface AlertView {
   id: number;
   key: string;
@@ -355,6 +370,7 @@ export interface AlertView {
   message: string;
   value: number | null;
   threshold: number | null;
+  unit: AlertUnit;
   openedAt: number; // chain time
   resolvedAt: number | null;
   active: boolean;
@@ -371,6 +387,20 @@ export interface TransactionView {
   receiver: string;
   assetsUsd: number;
   shares: number;
+}
+
+/** GET /risk/events - indexed RiskStateChanged / circuit-breaker / emergency events. */
+export interface RiskEventView {
+  id: number;
+  ts: number; // chain time
+  blockNumber: number;
+  txHash: string;
+  kind: string;
+  previousState: RiskStateName | null;
+  newState: RiskStateName | null;
+  flags: number | null; // raw on-chain bitmask
+  flagNames: RiskFlag[]; // decoded with RISK_FLAGS
+  details: Record<string, unknown> | null;
 }
 
 export interface HealthView {
